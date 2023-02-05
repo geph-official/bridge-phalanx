@@ -1,0 +1,133 @@
+use std::{process::Stdio, time::Duration};
+
+use serde::Deserialize;
+
+use crate::config::LightsailConfig;
+
+use super::Provider;
+
+pub struct LightsailProvider {
+    cfg: LightsailConfig,
+}
+
+impl LightsailProvider {
+    /// Creates a new Lightsail provider.
+    pub fn new(cfg: LightsailConfig) -> Self {
+        Self { cfg }
+    }
+}
+
+impl Provider for LightsailProvider {
+    fn create_server(&self, id: &str) -> smol::Task<anyhow::Result<String>> {
+        let name = id_to_name(id);
+        let bundle_id = self.cfg.bundle_id.clone();
+        let availability_zone = self.cfg.availability_zone.clone();
+        let key_pair_name = self.cfg.key_pair_name.clone();
+        let access_key_id = self.cfg.access_key_id.clone();
+        let secret_access_key = self.cfg.secret_access_key.clone();
+        let region = self.cfg.region.clone();
+        smol::spawn(async move {
+            system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail create-instances --instance-names {name} --blueprint-id debian_11 --bundle-id {bundle_id} --availability-zone {availability_zone} --key-pair-name {key_pair_name}")).await?;
+            log::debug!("<{availability_zone}> created a lightsail instance {name} in");
+            let ip_addr = loop {
+                let fallible_part = async {
+                    let s = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail get-instance --instance-name {name}")).await?;
+                    let j: SingleInstance = serde_json::from_str(&s)?;
+                    anyhow::Ok(j)
+                };
+                match fallible_part.await {
+                    Ok(res) => break res.instance.public_ip_address,
+                    Err(err) => {
+                        log::debug!("no IP ({:?}), waiting...", err);
+                    }
+                }
+                smol::Timer::after(Duration::from_secs(1)).await;
+            };
+            wait_until_reachable(&ip_addr).await;
+            log::debug!("<{availability_zone}> instance {name} opening ports");
+            while let Err(err) = system(&format!(r#"AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail open-instance-public-ports --instance-name {name} --port-info '{{"fromPort": 0, "toPort": 65535, "protocol": "all", "cidrs": ["0.0.0.0/0"]}}'"#)).await {
+                log::warn!("retrying... {:?}", err);
+                smol::Timer::after(Duration::from_secs(10)).await;
+            }
+            log::debug!(
+                "<{availability_zone}> instance {name} has ip {ip_addr}, enabling root access..."
+            );
+            system(&format!("ssh -o StrictHostKeyChecking=no admin@{ip_addr} sudo cp ~admin/.ssh/authorized_keys ~root/.ssh/authorized_keys")).await?;
+            Ok(ip_addr)
+        })
+    }
+
+    fn retain_by_id(
+        &self,
+        pred: Box<dyn Fn(&str) -> bool + Send + 'static>,
+    ) -> smol::Task<anyhow::Result<()>> {
+        let availability_zone = self.cfg.availability_zone.clone(); // TODO take into account!!
+        let access_key_id = self.cfg.access_key_id.clone();
+        let secret_access_key = self.cfg.secret_access_key.clone();
+        let region = self.cfg.region.clone();
+        smol::spawn(async move {
+            let s = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail get-instances")).await?;
+            let j: MultiInstances = serde_json::from_str(&s)?;
+            for instance in j.instances {
+                if !pred(&instance.name.replace("aws-phalanx-", ""))
+                    && instance.name.contains("aws-phalanx-")
+                {
+                    log::warn!(
+                        "<{availability_zone}> deleting {} {}",
+                        instance.name,
+                        instance.public_ip_address
+                    );
+                    let instance_name = instance.name;
+                    system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail delete-instance --instance-name {instance_name}")).await?;
+                }
+            }
+            Ok(())
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct SingleInstance {
+    instance: Inner,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct MultiInstances {
+    instances: Vec<Inner>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct Inner {
+    name: String,
+    #[serde(rename = "publicIpAddress")]
+    public_ip_address: String,
+}
+
+async fn system(cmd: &str) -> anyhow::Result<String> {
+    let child = smol::process::Command::new("sh")
+        .arg("-c")
+        .arg(cmd)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let output = child.output().await?;
+    let std_output: String = String::from_utf8_lossy(&output.stdout).into();
+    let std_err: String = String::from_utf8_lossy(&output.stderr).into();
+    if std_err.contains("An error") {
+        anyhow::bail!("{}", std_err.trim())
+    }
+    // eprintln!(">> {}\n<< {}", cmd, output);
+    anyhow::Ok(std_output)
+}
+
+/// mangle a bridge ID to an AWS name
+fn id_to_name(id: &str) -> String {
+    format!("aws-phalanx-{}", id)
+}
+
+async fn wait_until_reachable(ip: &str) {
+    log::debug!("waiting until {ip} is reachable...");
+    while let Err(err) = system(&format!("until nc -vzw 2 {ip} 22; do sleep 2; done")).await {
+        log::error!("{:?}", err)
+    }
+}
