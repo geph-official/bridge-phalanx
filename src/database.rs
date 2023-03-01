@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use chrono::NaiveDateTime;
 use once_cell::sync::Lazy;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
@@ -7,7 +9,9 @@ use crate::config::CONFIG;
 /// The global database instance.
 pub static DATABASE: Lazy<Pool<Postgres>> = Lazy::new(|| {
     PgPoolOptions::new()
-        .max_connections(2)
+        .acquire_timeout(Duration::from_secs(5))
+        .idle_timeout(Some(Duration::from_secs(5)))
+        .max_connections(6)
         .connect_lazy(&CONFIG.postgres_url)
         .unwrap()
 });

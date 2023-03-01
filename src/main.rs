@@ -6,7 +6,7 @@ use loop_gfw::loop_gfw;
 use loop_onoff::loop_onoff;
 use loop_provision::loop_provision;
 use loop_prune::loop_prune;
-use provider::{lightsail::LightsailProvider, Provider};
+use provider::{lightsail::LightsailProvider, vultr::VultrProvider, Provider};
 
 mod config;
 mod database;
@@ -29,6 +29,7 @@ fn main() {
         for (group, group_cfg) in CONFIG.groups.iter() {
             let provider: Arc<dyn Provider> = match &group_cfg.provider {
                 ProviderConfig::Lightsail(cfg) => Arc::new(LightsailProvider::new(cfg.clone())),
+                ProviderConfig::Vultr(cfg) => Arc::new(VultrProvider::new(cfg.clone())),
             };
             smol::spawn(loop_provision(
                 group.to_string(),

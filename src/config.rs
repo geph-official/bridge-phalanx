@@ -29,6 +29,7 @@ pub struct GroupConfig {
 #[serde(rename_all = "snake_case")]
 pub enum ProviderConfig {
     Lightsail(LightsailConfig),
+    Vultr(VultrConfig),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -41,6 +42,15 @@ pub struct LightsailConfig {
 
     pub bundle_id: String,
     pub key_pair_name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct VultrConfig {
+    pub api_key: String,
+    pub sshkey_id: String,
+    pub region: String,
+    pub plan: String,
+    pub os_id: u32,
 }
 
 /// Global configuration file

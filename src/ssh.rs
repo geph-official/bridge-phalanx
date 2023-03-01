@@ -1,13 +1,17 @@
-use std::process::Stdio;
+use std::{process::Stdio, time::Duration};
 
+use anyhow::Context;
 use once_cell::sync::Lazy;
 use smol::lock::Semaphore;
+use smol_timeout::TimeoutExt;
 
 pub async fn ssh_execute(host: &str, cmd: &str) -> anyhow::Result<String> {
-    static SSH_SEMAPHORE: Lazy<Semaphore> = Lazy::new(|| Semaphore::new(64));
+    static SSH_SEMAPHORE: Lazy<Semaphore> = Lazy::new(|| Semaphore::new(128));
     let _guard = SSH_SEMAPHORE.acquire().await;
 
     let status = smol::process::Command::new("ssh")
+        .arg("-o")
+        .arg("ConnectTimeout=5")
         .arg("-o")
         .arg("StrictHostKeyChecking=no")
         .arg(format!("root@{host}"))
@@ -16,9 +20,13 @@ pub async fn ssh_execute(host: &str, cmd: &str) -> anyhow::Result<String> {
         .stderr(Stdio::null())
         .spawn()?
         .output()
-        .await?;
+        .timeout(Duration::from_secs(300))
+        .await
+        .context("timeout in SSH after 300 secs")??;
+
     if !status.status.success() {
         anyhow::bail!("failed with status {:?}", status)
     }
+    log::trace!("ssh <{host}> {cmd}");
     Ok(String::from_utf8_lossy(&status.stdout).into())
 }

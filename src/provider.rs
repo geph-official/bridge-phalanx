@@ -1,4 +1,7 @@
 pub mod lightsail;
+pub mod vultr;
+
+use std::process::Stdio;
 
 use smol::Task;
 
@@ -12,4 +15,21 @@ pub trait Provider: Send + Sync + 'static {
         &self,
         pred: Box<dyn Fn(&str) -> bool + Send + 'static>,
     ) -> Task<anyhow::Result<()>>;
+}
+
+async fn system(cmd: &str) -> anyhow::Result<String> {
+    let child = smol::process::Command::new("sh")
+        .arg("-c")
+        .arg(cmd)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let output = child.output().await?;
+    let std_output: String = String::from_utf8_lossy(&output.stdout).into();
+    let std_err: String = String::from_utf8_lossy(&output.stderr).into();
+    if std_err.contains("An error") {
+        anyhow::bail!("{}", std_err.trim())
+    }
+    // eprintln!(">> {}\n<< {}", cmd, output);
+    anyhow::Ok(std_output)
 }

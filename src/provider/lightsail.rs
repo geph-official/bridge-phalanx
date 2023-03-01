@@ -1,8 +1,8 @@
-use std::{process::Stdio, time::Duration};
+use std::time::Duration;
 
 use serde::Deserialize;
 
-use crate::config::LightsailConfig;
+use crate::{config::LightsailConfig, provider::system};
 
 use super::Provider;
 
@@ -33,10 +33,14 @@ impl Provider for LightsailProvider {
                 let fallible_part = async {
                     let s = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail get-instance --instance-name {name}")).await?;
                     let j: SingleInstance = serde_json::from_str(&s)?;
-                    anyhow::Ok(j)
+                    if let Some(j) = j.instance.public_ip_address {
+                        anyhow::Ok(j)
+                    } else {
+                        anyhow::bail!("no IP yet!")
+                    }
                 };
                 match fallible_part.await {
-                    Ok(res) => break res.instance.public_ip_address,
+                    Ok(res) => break res,
                     Err(err) => {
                         log::debug!("no IP ({:?}), waiting...", err);
                     }
@@ -73,7 +77,7 @@ impl Provider for LightsailProvider {
                     && instance.name.contains("aws-phalanx-")
                 {
                     log::warn!(
-                        "<{availability_zone}> deleting {} {}",
+                        "<{availability_zone}> deleting {} {:?}",
                         instance.name,
                         instance.public_ip_address
                     );
@@ -100,24 +104,7 @@ struct MultiInstances {
 struct Inner {
     name: String,
     #[serde(rename = "publicIpAddress")]
-    public_ip_address: String,
-}
-
-async fn system(cmd: &str) -> anyhow::Result<String> {
-    let child = smol::process::Command::new("sh")
-        .arg("-c")
-        .arg(cmd)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-    let output = child.output().await?;
-    let std_output: String = String::from_utf8_lossy(&output.stdout).into();
-    let std_err: String = String::from_utf8_lossy(&output.stderr).into();
-    if std_err.contains("An error") {
-        anyhow::bail!("{}", std_err.trim())
-    }
-    // eprintln!(">> {}\n<< {}", cmd, output);
-    anyhow::Ok(std_output)
+    public_ip_address: Option<String>,
 }
 
 /// mangle a bridge ID to an AWS name
