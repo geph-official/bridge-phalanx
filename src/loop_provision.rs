@@ -2,7 +2,7 @@ use std::{ops::Deref, sync::Arc, time::Duration};
 
 use futures_util::{stream::FuturesUnordered, StreamExt};
 use rand::Rng;
-
+use smol_timeout::TimeoutExt;
 
 use crate::{
     config::{GroupConfig, CONFIG},
@@ -13,6 +13,7 @@ use crate::{
 
 pub async fn loop_provision(alloc_group: String, cfg: GroupConfig, provider: Arc<dyn Provider>) {
     loop {
+        log::info!("***** provision once {alloc_group} *****");
         if let Err(err) = loop_provision_once(&alloc_group, &cfg, provider.as_ref()).await {
             log::warn!("error: {:?}", err)
         }
@@ -25,13 +26,14 @@ async fn loop_provision_once(
     cfg: &GroupConfig,
     provider: &dyn Provider,
 ) -> anyhow::Result<()> {
+    async {
     {
         let bridges: Vec<BridgeInfo> = sqlx::query_as("select * from bridges")
             .fetch_all(DATABASE.deref())
             .await?;
         provider
             .retain_by_id(Box::new(move |id| {
-                bridges.iter().any(|b| b.bridge_id == id) 
+                bridges.iter().any(|b| b.bridge_id == id)
             }))
             .await?;
     }
@@ -50,11 +52,9 @@ async fn loop_provision_once(
 
             let id = new_id();
             let addr = provider.create_server(&id).await?;
-    
             // set into reserve status
             let bridge_secret = &CONFIG.bridge_secret;
             ssh_execute(&addr, &format!(" wget -qO- https://gist.githubusercontent.com/nullchinchilla/ecf752dfb3ff33635d1f6487b5a87531/raw/deploy-bridge-new.sh | env AGROUP={alloc_group} BSECRET={bridge_secret} sh")).await?;
-    
             sqlx::query("insert into bridges (bridge_id, ip_addr, alloc_group, status, change_time) values ($1, $2, $3, $4, NOW())").bind(id).bind(addr).bind(alloc_group).bind("reserve").execute(DATABASE.deref()).await?;
             anyhow::Ok(())
             });
@@ -64,7 +64,8 @@ async fn loop_provision_once(
         }
     }
 
-    Ok(())
+    anyhow::Ok(())
+}.timeout(Duration::from_secs(300)).await.ok_or_else(|| anyhow::anyhow!("timeout"))?
 }
 
 fn new_id() -> String {

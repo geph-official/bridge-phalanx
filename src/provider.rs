@@ -3,7 +3,7 @@ pub mod vultr;
 
 use std::process::Stdio;
 
-use smol::Task;
+use smol::{lock::Semaphore, Task};
 
 /// A specific service provider.
 pub trait Provider: Send + Sync + 'static {
@@ -18,6 +18,8 @@ pub trait Provider: Send + Sync + 'static {
 }
 
 async fn system(cmd: &str) -> anyhow::Result<String> {
+    static SEMAPH: Semaphore = Semaphore::new(6);
+    let _guard = SEMAPH.acquire().await;
     let child = smol::process::Command::new("sh")
         .arg("-c")
         .arg(cmd)

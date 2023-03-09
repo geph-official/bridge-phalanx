@@ -17,7 +17,7 @@ pub static DATABASE: Lazy<Pool<Postgres>> = Lazy::new(|| {
 });
 
 /// Info about a particular bridge, stored in the database.
-#[derive(sqlx::FromRow)]
+#[derive(sqlx::FromRow, Clone)]
 pub struct BridgeInfo {
     pub bridge_id: String,
     pub ip_addr: String,

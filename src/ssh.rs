@@ -11,13 +11,15 @@ pub async fn ssh_execute(host: &str, cmd: &str) -> anyhow::Result<String> {
 
     let status = smol::process::Command::new("ssh")
         .arg("-o")
-        .arg("ConnectTimeout=5")
+        .arg("ConnectTimeout=30")
         .arg("-o")
         .arg("StrictHostKeyChecking=no")
+        .arg("-o")
+        .arg("UserKnownHostsFile=/dev/null")
         .arg(format!("root@{host}"))
         .arg(cmd)
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()?
         .output()
         .timeout(Duration::from_secs(300))

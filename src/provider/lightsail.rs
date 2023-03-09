@@ -76,13 +76,18 @@ impl Provider for LightsailProvider {
                 if !pred(&instance.name.replace("aws-phalanx-", ""))
                     && instance.name.contains("aws-phalanx-")
                 {
-                    log::warn!(
-                        "<{availability_zone}> deleting {} {:?}",
-                        instance.name,
-                        instance.public_ip_address
-                    );
+                    let availability_zone = availability_zone.clone();
+                    let instance = instance.clone();
+                    let access_key_id = access_key_id.clone();
+                    let secret_access_key = secret_access_key.clone();
+                    let region = region.clone();
                     let instance_name = instance.name;
                     system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail delete-instance --instance-name {instance_name}")).await?;
+                    log::warn!(
+                        "<{availability_zone}> deleted {} {:?}",
+                        instance_name,
+                        instance.public_ip_address
+                    );
                 }
             }
             Ok(())
