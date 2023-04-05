@@ -6,7 +6,10 @@ use loop_gfw::loop_gfw;
 use loop_onoff::loop_onoff;
 use loop_provision::loop_provision;
 use loop_prune::loop_prune;
-use provider::{lightsail::LightsailProvider, vultr::VultrProvider, Provider};
+use provider::{
+    hetzner::HetznerProvider, lightsail::LightsailProvider, scaleway::ScalewayProvider,
+    scaleway_baremetal::ScalewayBaremetalProvider, vultr::VultrProvider, Provider,
+};
 
 mod config;
 mod database;
@@ -30,6 +33,11 @@ fn main() {
             let provider: Arc<dyn Provider> = match &group_cfg.provider {
                 ProviderConfig::Lightsail(cfg) => Arc::new(LightsailProvider::new(cfg.clone())),
                 ProviderConfig::Vultr(cfg) => Arc::new(VultrProvider::new(cfg.clone())),
+                ProviderConfig::Scaleway(cfg) => Arc::new(ScalewayProvider::new(cfg.clone())),
+                ProviderConfig::Hetzner(cfg) => Arc::new(HetznerProvider::new(cfg.clone())),
+                ProviderConfig::ScalewayBaremetal(cfg) => {
+                    Arc::new(ScalewayBaremetalProvider::new(cfg.clone()))
+                }
             };
             smol::spawn(loop_provision(
                 group.to_string(),

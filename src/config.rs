@@ -21,6 +21,8 @@ pub struct Config {
 pub struct GroupConfig {
     pub frontline: usize,
     pub reserve: usize,
+    #[serde(default)]
+    pub override_group: Option<String>,
     pub provider: ProviderConfig,
 }
 
@@ -30,6 +32,9 @@ pub struct GroupConfig {
 pub enum ProviderConfig {
     Lightsail(LightsailConfig),
     Vultr(VultrConfig),
+    Scaleway(ScalewayConfig),
+    ScalewayBaremetal(ScalewayConfig),
+    Hetzner(HetznerConfig),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -51,6 +56,23 @@ pub struct VultrConfig {
     pub region: String,
     pub plan: String,
     pub os_id: u32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ScalewayConfig {
+    pub secret_key: String,
+    pub zone: String,
+    pub project_id: String,
+    pub commercial_type: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HetznerConfig {
+    pub api_token: String,
+    pub server_type: String,
+    pub location: String,
+    pub image: String,
+    pub sshkey_id: String,
 }
 
 /// Global configuration file

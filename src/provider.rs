@@ -1,4 +1,7 @@
+pub mod hetzner;
 pub mod lightsail;
+pub mod scaleway;
+pub mod scaleway_baremetal;
 pub mod vultr;
 
 use std::process::Stdio;
@@ -34,4 +37,11 @@ async fn system(cmd: &str) -> anyhow::Result<String> {
     }
     // eprintln!(">> {}\n<< {}", cmd, output);
     anyhow::Ok(std_output)
+}
+
+async fn wait_until_reachable(ip: &str) {
+    log::debug!("waiting until {ip} is reachable...");
+    while let Err(err) = system(&format!("until nc -vzw 2 {ip} 22; do sleep 2; done")).await {
+        log::error!("{:?}", err)
+    }
 }

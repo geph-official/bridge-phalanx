@@ -6,12 +6,12 @@ use smol::lock::Semaphore;
 use smol_timeout::TimeoutExt;
 
 pub async fn ssh_execute(host: &str, cmd: &str) -> anyhow::Result<String> {
-    static SSH_SEMAPHORE: Lazy<Semaphore> = Lazy::new(|| Semaphore::new(128));
+    static SSH_SEMAPHORE: Lazy<Semaphore> = Lazy::new(|| Semaphore::new(512));
     let _guard = SSH_SEMAPHORE.acquire().await;
 
     let status = smol::process::Command::new("ssh")
         .arg("-o")
-        .arg("ConnectTimeout=30")
+        .arg("ConnectTimeout=300")
         .arg("-o")
         .arg("StrictHostKeyChecking=no")
         .arg("-o")

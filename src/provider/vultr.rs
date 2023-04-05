@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::{time::Duration};
 
 use anyhow::Context;
 use isahc::AsyncReadResponseExt;

@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
-use crate::{config::LightsailConfig, provider::system};
+use crate::{
+    config::LightsailConfig,
+    provider::{system, wait_until_reachable},
+};
 
 use super::Provider;
 
@@ -115,11 +118,4 @@ struct Inner {
 /// mangle a bridge ID to an AWS name
 fn id_to_name(id: &str) -> String {
     format!("aws-phalanx-{}", id)
-}
-
-async fn wait_until_reachable(ip: &str) {
-    log::debug!("waiting until {ip} is reachable...");
-    while let Err(err) = system(&format!("until nc -vzw 2 {ip} 22; do sleep 2; done")).await {
-        log::error!("{:?}", err)
-    }
 }

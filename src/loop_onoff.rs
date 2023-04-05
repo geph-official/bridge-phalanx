@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref, time::Duration};
+use std::{ops::Deref, time::Duration};
 
 use anyhow::Context;
 use dashmap::DashMap;
@@ -48,7 +48,8 @@ async fn loop_onoff_once(last_status: &DashMap<String, String>) -> anyhow::Resul
             let bb = bridge.clone();
             let task = async move {
                 log::debug!(
-                    "{i}/{total} {} ({}) transitions {} => {}",
+                    "{i}/{total} {}/{} ({}) transitions {} => {}",
+                    bridge.alloc_group,
                     bridge.bridge_id,
                     bridge.ip_addr,
                     old_status.unwrap_or_else(|| "(none)".into()),
@@ -83,7 +84,7 @@ async fn loop_onoff_once(last_status: &DashMap<String, String>) -> anyhow::Resul
         }
     }
     let v: Vec<()> = futures_util::stream::iter(tasks)
-        .buffered(12)
+        .buffered(64)
         .try_collect()
         .await?;
     log::debug!("{} statuses updated", v.len());
