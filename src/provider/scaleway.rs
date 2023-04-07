@@ -62,6 +62,7 @@ impl Provider for ScalewayProvider {
             commercial_type: String,
             image: String,
             enable_ipv6: bool,
+            dynamic_ip_required: bool,
         }
 
         let id = id.to_string();
@@ -77,8 +78,9 @@ impl Provider for ScalewayProvider {
                 name: id.clone(),
                 project: cfg.project_id.clone(),
                 commercial_type: cfg.commercial_type.clone(),
-                image: "09cfbb91-f7c2-498a-ba0b-b54e19cb9d0f".into(),
+                image: cfg.image.clone(),
                 enable_ipv6: false,
+                dynamic_ip_required: true,
             })?)?
             .send_async()
             .await?;
@@ -126,7 +128,7 @@ impl Provider for ScalewayProvider {
         let cfg = self.cfg.clone();
         smol::spawn(async move {
             let url = format!(
-                "https://api.scaleway.com/instance/v1/zones/{}/servers",
+                "https://api.scaleway.com/instance/v1/zones/{}/servers?per_page=100",
                 cfg.zone
             );
             let resp = Request::get(&url)
@@ -141,14 +143,14 @@ impl Provider for ScalewayProvider {
                 .as_array()
                 .ok_or(anyhow::Error::msg("No servers found"))?;
 
-            for server in servers {
+            for (i, server) in servers.iter().enumerate() {
                 let server_id = server["id"]
                     .as_str()
                     .ok_or(anyhow::Error::msg("No server id found"))?;
                 let server_name = server["name"]
                     .as_str()
                     .ok_or(anyhow::Error::msg("No server name found"))?;
-
+                // log::debug!("checking {server_name} / {i}");
                 if !pred(server_name) && !check_recent(server_name) {
                     log::debug!("SCALEWAY DELETING {server_name}");
                     delete_server(&cfg, server_id).await?;

@@ -19,7 +19,7 @@ pub async fn loop_provision(alloc_group: String, cfg: GroupConfig, provider: Arc
         smol::Timer::after(Duration::from_secs_f64(secs)).await;
         log::info!("***** provision once {alloc_group} *****");
         if let Err(err) = loop_provision_once(&alloc_group, &cfg, provider.as_ref()).await {
-            log::warn!("error: {:?}", err)
+            log::warn!("{alloc_group} error: {:?}", err)
         }
     }
 }

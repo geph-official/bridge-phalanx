@@ -64,6 +64,7 @@ pub struct ScalewayConfig {
     pub zone: String,
     pub project_id: String,
     pub commercial_type: String,
+    pub image: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
