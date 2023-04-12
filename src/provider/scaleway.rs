@@ -120,40 +120,48 @@ impl Provider for ScalewayProvider {
             }
         })
     }
-
     fn retain_by_id(
         &self,
         pred: Box<dyn Fn(&str) -> bool + Send + 'static>,
     ) -> smol::Task<anyhow::Result<()>> {
         let cfg = self.cfg.clone();
         smol::spawn(async move {
-            let url = format!(
-                "https://api.scaleway.com/instance/v1/zones/{}/servers?per_page=100",
+            let base_url = format!(
+                "https://api.scaleway.com/instance/v1/zones/{}/servers",
                 cfg.zone
             );
-            let resp = Request::get(&url)
-                .header("X-Auth-Token", &cfg.secret_key)
-                .body("")?
-                .send_async()
-                .await?;
-            let mut body = String::new();
-            resp.into_body().read_to_string(&mut body).await?;
-            let server_list: serde_json::Value = serde_json::from_str(&body)?;
-            let servers = server_list["servers"]
-                .as_array()
-                .ok_or(anyhow::Error::msg("No servers found"))?;
 
-            for (i, server) in servers.iter().enumerate() {
-                let server_id = server["id"]
-                    .as_str()
-                    .ok_or(anyhow::Error::msg("No server id found"))?;
-                let server_name = server["name"]
-                    .as_str()
-                    .ok_or(anyhow::Error::msg("No server name found"))?;
-                // log::debug!("checking {server_name} / {i}");
-                if !pred(server_name) && !check_recent(server_name) {
-                    log::debug!("SCALEWAY DELETING {server_name}");
-                    delete_server(&cfg, server_id).await?;
+            for current_page in 1.. {
+                let url = format!("{}?per_page=10&page={}", base_url, current_page);
+                let resp = Request::get(&url)
+                    .header("X-Auth-Token", &cfg.secret_key)
+                    .body("")?
+                    .send_async()
+                    .await?;
+                let mut body = String::new();
+                resp.into_body().read_to_string(&mut body).await?;
+                let server_list: serde_json::Value = serde_json::from_str(&body)?;
+
+                let servers = server_list["servers"]
+                    .as_array()
+                    .ok_or(anyhow::Error::msg("No servers found"))?;
+
+                if servers.is_empty() {
+                    break;
+                }
+
+                for (i, server) in servers.iter().enumerate() {
+                    let server_id = server["id"]
+                        .as_str()
+                        .ok_or(anyhow::Error::msg("No server id found"))?;
+                    let server_name = server["name"]
+                        .as_str()
+                        .ok_or(anyhow::Error::msg("No server name found"))?;
+                    // log::debug!("checking {server_name} / {i}");
+                    if !pred(server_name) && !check_recent(server_name) {
+                        log::debug!("SCALEWAY DELETING {server_name}");
+                        delete_server(&cfg, server_id).await?;
+                    }
                 }
             }
 

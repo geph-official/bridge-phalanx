@@ -10,6 +10,7 @@ pub async fn ssh_execute(host: &str, cmd: &str) -> anyhow::Result<String> {
     let _guard = SSH_SEMAPHORE.acquire().await;
 
     let status = smol::process::Command::new("ssh")
+        .arg("-C")
         .arg("-o")
         .arg("ConnectTimeout=300")
         .arg("-o")
