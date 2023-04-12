@@ -4,7 +4,7 @@ use anyhow::Context;
 use isahc::{AsyncReadResponseExt, Request, RequestExt};
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
-use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use smol::io::AsyncReadExt;
 
 use crate::{config::ScalewayConfig, provider::wait_until_reachable};
@@ -19,24 +19,6 @@ impl ScalewayProvider {
     pub fn new(cfg: ScalewayConfig) -> Self {
         Self { cfg }
     }
-}
-
-#[derive(Serialize, Deserialize)]
-struct SingleServer {
-    id: String,
-    name: String,
-    public_ip: Option<PublicIpInfo>,
-    state: String,
-}
-
-#[derive(Serialize, Deserialize)]
-struct PublicIpInfo {
-    address: String,
-}
-
-#[derive(Deserialize)]
-struct ServerResp {
-    server: SingleServer,
 }
 
 static RECENT_LIST: Lazy<Mutex<HashMap<String, Instant>>> =
@@ -55,15 +37,14 @@ fn check_recent(s: &str) -> bool {
 impl Provider for ScalewayProvider {
     fn create_server(&self, id: &str) -> smol::Task<anyhow::Result<String>> {
         add_recent(id);
-        #[derive(Serialize)]
-        struct CreateServerReq {
-            name: String,
-            project: String,
-            commercial_type: String,
-            image: String,
-            enable_ipv6: bool,
-            dynamic_ip_required: bool,
-        }
+        let create_server_req = json!({
+            "name": id,
+            "project": self.cfg.project_id,
+            "commercial_type": self.cfg.commercial_type,
+            "image": self.cfg.image,
+            "enable_ipv6": false,
+            "dynamic_ip_required": false,
+        });
 
         let id = id.to_string();
         let cfg = self.cfg.clone();
@@ -74,14 +55,7 @@ impl Provider for ScalewayProvider {
             ))
             .header("content-type", "application/json")
             .header("X-Auth-Token", &cfg.secret_key)
-            .body(serde_json::to_vec(&CreateServerReq {
-                name: id.clone(),
-                project: cfg.project_id.clone(),
-                commercial_type: cfg.commercial_type.clone(),
-                image: cfg.image.clone(),
-                enable_ipv6: false,
-                dynamic_ip_required: true,
-            })?)?
+            .body(create_server_req.to_string())?
             .send_async()
             .await?;
 
@@ -94,23 +68,25 @@ impl Provider for ScalewayProvider {
 
             let mut rr = String::new();
             resp.into_body().read_to_string(&mut rr).await?;
-            let resp: ServerResp =
+            let resp: Value =
                 serde_json::from_str(&rr).context("cannot parse server resp for create")?;
+            let server_id = resp["server"]["id"]
+                .as_str()
+                .context("invalid json in response")?
+                .to_string();
             log::debug!("server created {id}");
 
-            perform_action(&cfg, &resp.server.id, "poweron")
+            perform_action(&cfg, &server_id, "poweron")
                 .await
                 .context("cannot turn on server")?;
             log::debug!("turned on {id}");
 
             loop {
-                let ip_addr = get_server(&cfg, &resp.server.id)
+                let server_resp = get_server(&cfg, &server_id)
                     .await
-                    .context("cannot get server")?
-                    .server
-                    .public_ip;
-                if let Some(ip_addr) = ip_addr {
-                    let ip_addr = ip_addr.address;
+                    .context("cannot get server")?;
+                if let Some(addr) = server_resp["server"]["public_ip"]["address"].as_str() {
+                    let ip_addr = addr.to_string();
                     log::debug!("got IP address {id}: {ip_addr}");
                     wait_until_reachable(&ip_addr).await;
                     log::debug!("fully done {id}");
@@ -120,6 +96,7 @@ impl Provider for ScalewayProvider {
             }
         })
     }
+
     fn retain_by_id(
         &self,
         pred: Box<dyn Fn(&str) -> bool + Send + 'static>,
@@ -140,7 +117,7 @@ impl Provider for ScalewayProvider {
                     .await?;
                 let mut body = String::new();
                 resp.into_body().read_to_string(&mut body).await?;
-                let server_list: serde_json::Value = serde_json::from_str(&body)?;
+                let server_list: Value = serde_json::from_str(&body)?;
 
                 let servers = server_list["servers"]
                     .as_array()
@@ -150,16 +127,16 @@ impl Provider for ScalewayProvider {
                     break;
                 }
 
-                for (i, server) in servers.iter().enumerate() {
+                for server in servers.iter() {
                     let server_id = server["id"]
                         .as_str()
                         .ok_or(anyhow::Error::msg("No server id found"))?;
                     let server_name = server["name"]
                         .as_str()
                         .ok_or(anyhow::Error::msg("No server name found"))?;
-                    // log::debug!("checking {server_name} / {i}");
+                    // log::debug!("checking {server_name}");
                     if !pred(server_name) && !check_recent(server_name) {
-                        log::debug!("SCALEWAY DELETING {server_name}");
+                        log::debug!("SCALEWAY DELETING {}", server_name);
                         delete_server(&cfg, server_id).await?;
                     }
                 }
@@ -170,10 +147,10 @@ impl Provider for ScalewayProvider {
     }
 }
 
-async fn get_server(cfg: &ScalewayConfig, scw_server_id: &str) -> anyhow::Result<ServerResp> {
+async fn get_server(cfg: &ScalewayConfig, scw_server_id: &str) -> anyhow::Result<Value> {
     let mut response = Request::get(format!(
-        "https://api.scaleway.com/instance/v1/zones/{}/servers/{scw_server_id}",
-        cfg.zone
+        "https://api.scaleway.com/instance/v1/zones/{}/servers/{}",
+        cfg.zone, scw_server_id
     ))
     .header("X-Auth-Token", &cfg.secret_key)
     .body("")?
@@ -181,7 +158,7 @@ async fn get_server(cfg: &ScalewayConfig, scw_server_id: &str) -> anyhow::Result
     .await?;
 
     let body = response.text().await?;
-    let parsed_response = serde_json::from_str::<ServerResp>(&body)
+    let parsed_response = serde_json::from_str(&body)
         .map_err(|e| anyhow::anyhow!("Failed to parse response: {}\n{}", e.to_string(), body))?;
 
     Ok(parsed_response)
@@ -192,10 +169,9 @@ async fn perform_action(
     scw_server_id: &str,
     action: &str,
 ) -> anyhow::Result<()> {
-    #[derive(Serialize)]
-    struct ActionReq {
-        action: String,
-    }
+    let action_req = json!({
+        "action": action.to_string(),
+    });
 
     let request = Request::post(format!(
         "https://api.scaleway.com/instance/v1/zones/{}/servers/{}/action",
@@ -203,9 +179,7 @@ async fn perform_action(
     ))
     .header("X-Auth-Token", &cfg.secret_key)
     .header("Content-Type", "application/json")
-    .body(serde_json::to_vec(&ActionReq {
-        action: action.to_string(),
-    })?)?;
+    .body(action_req.to_string())?;
 
     let mut response = isahc::send_async(request).await?;
 
@@ -223,10 +197,11 @@ async fn perform_action(
 async fn delete_server(cfg: &ScalewayConfig, scw_server_id: &str) -> anyhow::Result<()> {
     if let Err(err) = perform_action(cfg, scw_server_id, "terminate").await {
         log::warn!(
-            "could not terminate {scw_server_id} ({:?}), deleting instead",
-            err
+            "could not terminate ({:?}), deleting instead {}",
+            err,
+            scw_server_id
         );
-        log::debug!("deleting {scw_server_id}");
+        log::debug!("deleting {}", scw_server_id);
         let request = Request::delete(format!(
             "https://api.scaleway.com/instance/v1/zones/{}/servers/{}",
             cfg.zone, scw_server_id
