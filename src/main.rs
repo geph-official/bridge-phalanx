@@ -8,7 +8,7 @@ use loop_provision::loop_provision;
 use loop_prune::loop_prune;
 use provider::{
     hetzner::HetznerProvider, lightsail::LightsailProvider, scaleway::ScalewayProvider,
-    scaleway_baremetal::ScalewayBaremetalProvider, vultr::VultrProvider, Provider,
+    vultr::VultrProvider, Provider,
 };
 
 mod config;
@@ -35,9 +35,6 @@ fn main() {
                 ProviderConfig::Vultr(cfg) => Arc::new(VultrProvider::new(cfg.clone())),
                 ProviderConfig::Scaleway(cfg) => Arc::new(ScalewayProvider::new(cfg.clone())),
                 ProviderConfig::Hetzner(cfg) => Arc::new(HetznerProvider::new(cfg.clone())),
-                ProviderConfig::ScalewayBaremetal(cfg) => {
-                    Arc::new(ScalewayBaremetalProvider::new(cfg.clone()))
-                }
             };
             smol::spawn(loop_provision(
                 group.to_string(),

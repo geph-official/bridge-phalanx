@@ -1,7 +1,7 @@
 pub mod hetzner;
 pub mod lightsail;
 pub mod scaleway;
-pub mod scaleway_baremetal;
+
 pub mod vultr;
 
 use std::process::Stdio;
