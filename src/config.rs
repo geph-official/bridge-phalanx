@@ -3,6 +3,11 @@ use std::collections::BTreeMap;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
+use crate::provider::{
+    hetzner::HetznerConfig, lightsail::LightsailConfig, scaleway::ScalewayConfig,
+    vultr::VultrConfig,
+};
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 /// YAML configuration file
 pub struct Config {
@@ -33,47 +38,8 @@ pub enum ProviderConfig {
     Lightsail(LightsailConfig),
     Vultr(VultrConfig),
     Scaleway(ScalewayConfig),
-    ScalewayBaremetal(ScalewayConfig),
+
     Hetzner(HetznerConfig),
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct LightsailConfig {
-    pub access_key_id: String,
-    pub secret_access_key: String,
-
-    pub region: String,
-    pub availability_zone: String,
-
-    pub bundle_id: String,
-    pub key_pair_name: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct VultrConfig {
-    pub api_key: String,
-    pub sshkey_id: String,
-    pub region: String,
-    pub plan: String,
-    pub os_id: u32,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct ScalewayConfig {
-    pub secret_key: String,
-    pub zone: String,
-    pub project_id: String,
-    pub commercial_type: String,
-    pub image: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct HetznerConfig {
-    pub api_token: String,
-    pub server_type: String,
-    pub location: String,
-    pub image: String,
-    pub sshkey_id: String,
 }
 
 /// Global configuration file

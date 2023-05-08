@@ -1,10 +1,19 @@
 use isahc::{AsyncReadResponseExt, Request, RequestExt};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use smol::io::AsyncReadExt;
 
-use crate::{config::HetznerConfig, provider::wait_until_reachable};
+use crate::provider::wait_until_reachable;
 
 use super::Provider;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HetznerConfig {
+    pub api_token: String,
+    pub server_type: String,
+    pub location: String,
+    pub image: String,
+    pub sshkey_id: String,
+}
 
 pub struct HetznerProvider {
     cfg: HetznerConfig,

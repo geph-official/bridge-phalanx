@@ -1,15 +1,28 @@
 use std::{ops::Deref, time::Duration};
 
-use rand::Rng;
-
 use crate::{config::CONFIG, database::DATABASE};
 
 pub async fn loop_prune() {
+    let total_count: usize = CONFIG
+        .groups
+        .values()
+        .map(|v| v.frontline + v.reserve)
+        .sum();
+    let delete_interval = CONFIG.max_lifetime_hr / (total_count as f64) * 3600.0;
+    let mut timer = smol::Timer::interval(Duration::from_secs_f64(delete_interval));
     loop {
-        if let Err(err) = sqlx::query("delete from bridges where (status != 'reserve' and change_time + interval '1 hour' * $1  < NOW()) or (status = 'blocked')").bind(CONFIG.max_lifetime_hr).execute(DATABASE.deref()).await {
+        log::debug!("prune timer fires {delete_interval}");
+        if let Err(err) = sqlx::query(
+            "delete from bridges where change_time = (
+            SELECT MIN(change_time)
+            FROM bridges
+          ) or (status = 'blocked')",
+        )
+        .execute(DATABASE.deref())
+        .await
+        {
             log::warn!("prune error: {:?}", err);
         }
-        let count = rand::thread_rng().gen_range(10..20);
-        smol::Timer::after(Duration::from_secs(count)).await;
+        (&mut timer).await;
     }
 }

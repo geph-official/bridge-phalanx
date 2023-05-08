@@ -1,15 +1,31 @@
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::HashMap,
+    path::Path,
+    time::{Instant, SystemTime, UNIX_EPOCH},
+};
 
+use acidjson::AcidJson;
 use anyhow::Context;
+
 use isahc::{AsyncReadResponseExt, Request, RequestExt};
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use smol::io::AsyncReadExt;
 
-use crate::{config::ScalewayConfig, provider::wait_until_reachable};
+use crate::provider::wait_until_reachable;
 
 use super::Provider;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ScalewayConfig {
+    pub secret_key: String,
+    pub zone: String,
+    pub project_id: String,
+    pub commercial_type: String,
+    pub image: String,
+}
 
 pub struct ScalewayProvider {
     cfg: ScalewayConfig,
@@ -21,32 +37,39 @@ impl ScalewayProvider {
     }
 }
 
-static RECENT_LIST: Lazy<Mutex<HashMap<String, Instant>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+static RECENT_IDS: Lazy<Mutex<HashMap<String, Instant>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 fn add_recent(s: &str) {
-    RECENT_LIST.lock().insert(s.to_string(), Instant::now());
+    RECENT_IDS.lock().insert(s.to_string(), Instant::now());
 }
 
 fn check_recent(s: &str) -> bool {
-    let mut lst = RECENT_LIST.lock();
-    lst.retain(|k, v| v.elapsed().as_secs_f64() < 120.0);
+    let mut lst = RECENT_IDS.lock();
+    lst.retain(|_k, v| v.elapsed().as_secs_f64() < 600.0);
     lst.contains_key(s)
 }
 
+static USED_IPS: Lazy<AcidJson<HashMap<String, u64>>> = Lazy::new(|| {
+    let fname = "/tmp/scw-ips.json";
+    if !Path::new(fname).exists() {
+        std::fs::write(fname, "{}").unwrap();
+    }
+    AcidJson::open(Path::new(fname)).unwrap()
+});
+
 impl Provider for ScalewayProvider {
-    fn create_server(&self, id: &str) -> smol::Task<anyhow::Result<String>> {
-        add_recent(id);
+    fn create_server(&self, phalanx_id: &str) -> smol::Task<anyhow::Result<String>> {
+        add_recent(phalanx_id);
         let create_server_req = json!({
-            "name": id,
+            "name": phalanx_id,
             "project": self.cfg.project_id,
             "commercial_type": self.cfg.commercial_type,
             "image": self.cfg.image,
             "enable_ipv6": false,
-            "dynamic_ip_required": false,
+            "dynamic_ip_required": true,
         });
 
-        let id = id.to_string();
+        let id = phalanx_id.to_string();
         let cfg = self.cfg.clone();
         smol::spawn(async move {
             let resp = Request::post(format!(
@@ -70,28 +93,39 @@ impl Provider for ScalewayProvider {
             resp.into_body().read_to_string(&mut rr).await?;
             let resp: Value =
                 serde_json::from_str(&rr).context("cannot parse server resp for create")?;
-            let server_id = resp["server"]["id"]
+            let scaleway_id = resp["server"]["id"]
                 .as_str()
                 .context("invalid json in response")?
                 .to_string();
             log::debug!("server created {id}");
 
-            perform_action(&cfg, &server_id, "poweron")
+            perform_action(&cfg, &scaleway_id, "poweron")
                 .await
                 .context("cannot turn on server")?;
             log::debug!("turned on {id}");
-
             loop {
-                let server_resp = get_server(&cfg, &server_id)
+                let ip_addr = get_server(&cfg, &scaleway_id)
                     .await
-                    .context("cannot get server")?;
-                if let Some(addr) = server_resp["server"]["public_ip"]["address"].as_str() {
-                    let ip_addr = addr.to_string();
+                    .context("cannot get server")?["server"]["public_ip"]["address"]
+                    .as_str()
+                    .map(|s| s.to_string());
+                if let Some(ip_addr) = ip_addr {
+                    if USED_IPS
+                        .write()
+                        .insert(
+                            ip_addr.clone(),
+                            SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
+                        )
+                        .is_some()
+                    {
+                        anyhow::bail!("already seen IP {ip_addr}");
+                    }
+
                     log::debug!("got IP address {id}: {ip_addr}");
                     wait_until_reachable(&ip_addr).await;
                     log::debug!("fully done {id}");
 
-                    return Ok(ip_addr);
+                    return Ok(ip_addr.to_string());
                 }
             }
         })
@@ -134,7 +168,7 @@ impl Provider for ScalewayProvider {
                     let server_name = server["name"]
                         .as_str()
                         .ok_or(anyhow::Error::msg("No server name found"))?;
-                    // log::debug!("checking {server_name}");
+
                     if !pred(server_name) && !check_recent(server_name) {
                         log::debug!("SCALEWAY DELETING {}", server_name);
                         delete_server(&cfg, server_id).await?;

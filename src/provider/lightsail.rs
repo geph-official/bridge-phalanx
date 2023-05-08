@@ -1,13 +1,22 @@
 use std::time::Duration;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use crate::{
-    config::LightsailConfig,
-    provider::{system, wait_until_reachable},
-};
+use crate::provider::{system, wait_until_reachable};
 
 use super::Provider;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct LightsailConfig {
+    pub access_key_id: String,
+    pub secret_access_key: String,
+
+    pub region: String,
+    pub availability_zone: String,
+
+    pub bundle_id: String,
+    pub key_pair_name: String,
+}
 
 pub struct LightsailProvider {
     cfg: LightsailConfig,

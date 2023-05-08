@@ -1,12 +1,19 @@
-use std::{time::Duration};
+use std::time::Duration;
 
 use anyhow::Context;
 use isahc::AsyncReadResponseExt;
 use serde::{Deserialize, Serialize};
 
-use crate::config::VultrConfig;
-
 use super::Provider;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct VultrConfig {
+    pub api_key: String,
+    pub sshkey_id: String,
+    pub region: String,
+    pub plan: String,
+    pub os_id: u32,
+}
 
 pub struct VultrProvider {
     client: isahc::HttpClient,
