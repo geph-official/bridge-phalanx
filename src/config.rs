@@ -15,8 +15,6 @@ pub struct Config {
     pub postgres_url: String,
     /// The bridge secret.
     pub bridge_secret: String,
-    /// Maximum lifetime.
-    pub max_lifetime_hr: f64,
     /// Bridge groups
     pub groups: BTreeMap<String, GroupConfig>,
 }
@@ -29,6 +27,8 @@ pub struct GroupConfig {
     #[serde(default)]
     pub override_group: Option<String>,
     pub provider: ProviderConfig,
+    /// Maximum lifetime.
+    pub max_lifetime_hr: f64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
