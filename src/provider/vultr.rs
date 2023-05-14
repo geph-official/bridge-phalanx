@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Context;
+use async_trait::async_trait;
 use isahc::AsyncReadResponseExt;
 use serde::{Deserialize, Serialize};
 
@@ -53,52 +54,49 @@ struct ServerDescriptor {
     main_ip: Option<String>,
 }
 
+#[async_trait]
 impl Provider for VultrProvider {
-    fn create_server(&self, id: &str) -> smol::Task<anyhow::Result<String>> {
+    async fn create_server(&self, id: &str) -> anyhow::Result<String> {
         let id = id.to_string();
         let cfg = self.cfg.clone();
         let client = self.client.clone();
-        smol::spawn(async move {
-            let req = CreateServerArgs {
-                label: vultrify_id(&id),
+        let req = CreateServerArgs {
+            label: vultrify_id(&id),
 
-                region: cfg.region.clone(),
-                plan: cfg.plan.clone(),
-                os_id: cfg.os_id,
-                sshkey_id: vec![cfg.sshkey_id.clone()],
-            };
-            let mut resp = client
-                .post_async(
-                    "https://api.vultr.com/v2/instances",
-                    serde_json::to_vec(&req)?,
-                )
-                .await?;
-            if !resp.status().is_success() {
-                let r = resp.text().await?;
-                anyhow::bail!("non-success while creating: {:?} {r}", resp.status())
+            region: cfg.region.clone(),
+            plan: cfg.plan.clone(),
+            os_id: cfg.os_id,
+            sshkey_id: vec![cfg.sshkey_id.clone()],
+        };
+        let mut resp = client
+            .post_async(
+                "https://api.vultr.com/v2/instances",
+                serde_json::to_vec(&req)?,
+            )
+            .await?;
+        if !resp.status().is_success() {
+            let r = resp.text().await?;
+            anyhow::bail!("non-success while creating: {:?} {r}", resp.status())
+        }
+        // wait for the server to appear with a proper IP address
+        loop {
+            if let Some(server) = list_all(client.clone()).await?.into_iter().find(|server| {
+                server.label == vultrify_id(&id)
+                    && server.main_ip.is_some()
+                    && server.status == "active"
+            }) {
+                return Ok(server.main_ip.unwrap());
             }
-            // wait for the server to appear with a proper IP address
-            loop {
-                if let Some(server) = list_all(client.clone()).await?.into_iter().find(|server| {
-                    server.label == vultrify_id(&id)
-                        && server.main_ip.is_some()
-                        && server.status == "active"
-                }) {
-                    return Ok(server.main_ip.unwrap());
-                }
-                smol::Timer::after(Duration::from_secs(1)).await;
-            }
-        })
+            smol::Timer::after(Duration::from_secs(1)).await;
+        }
     }
 
-    fn retain_by_id(
+    async fn retain_by_id(
         &self,
-        _pred: Box<dyn Fn(&str) -> bool + Send + 'static>,
-    ) -> smol::Task<anyhow::Result<()>> {
-        smol::spawn(async move {
-            log::warn!("vultr no delete yet");
-            Ok(())
-        })
+        _pred: Box<dyn Fn(String) -> bool + Send + 'static>,
+    ) -> anyhow::Result<()> {
+        log::warn!("vultr no delete yet");
+        Ok(())
     }
 }
 
