@@ -1,4 +1,11 @@
-use std::{ops::Deref, sync::Arc, time::Duration};
+use std::{
+    ops::Deref,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use anyhow::Context;
 use futures_util::{stream::FuturesUnordered, StreamExt};
@@ -40,6 +47,8 @@ async fn loop_provision_once(
             }))
             .await?;
     }
+
+
 
     let (reserve_count,): (i64,) = sqlx::query_as(
         "select count(bridge_id) from bridges where status = 'reserve' and alloc_group = $1",

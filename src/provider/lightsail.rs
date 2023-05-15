@@ -1,6 +1,8 @@
 use std::time::Duration;
 
+use anyhow::Context;
 use async_trait::async_trait;
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 
 use crate::provider::{system, wait_until_reachable};
@@ -27,6 +29,29 @@ impl LightsailProvider {
     /// Creates a new Lightsail provider.
     pub fn new(cfg: LightsailConfig) -> Self {
         Self { cfg }
+    }
+
+    /// Query the burst capacity percentage of a particular server.
+    async fn burst_capacity_percent(&self, aws_name: &str) -> anyhow::Result<f64> {
+        let LightsailConfig {
+            access_key_id,
+            secret_access_key,
+            region,
+            availability_zone: _,
+            bundle_id: _,
+            key_pair_name: _,
+        } = &self.cfg;
+        let result = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail get-instance-metric-data --instance-name {aws_name} --metric-name BurstCapacityPercentage --unit Percent --start-time $(date -u -d '1 hour ago' +%FT%TZ) --end-time $(date -u +%FT%TZ) --period 600 --statistics Average")).await?;
+        let result: serde_json::Value = serde_json::from_str(&result)?;
+        let data = result["metricData"]
+            .as_array()
+            .context("metricData not an array")?
+            .iter()
+            .max_by_key(|v| v["timestamp"].as_f64().unwrap_or(0.0) as u64)
+            .context("metricData has no last")?["average"]
+            .as_f64()
+            .context("metricData last average no exist")?;
+        Ok(data)
     }
 }
 
@@ -102,6 +127,40 @@ impl Provider for LightsailProvider {
             }
         }
         Ok(())
+    }
+
+    async fn overload(&self) -> anyhow::Result<f64> {
+        let LightsailConfig {
+            access_key_id,
+            secret_access_key,
+            region,
+            availability_zone: _,
+            bundle_id: _,
+            key_pair_name: _,
+        } = &self.cfg;
+        let s = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail get-instances")).await?;
+        let j: MultiInstances = serde_json::from_str(&s)?;
+
+        let mut burst_capacities = futures_util::stream::iter(j.instances.clone().into_iter())
+            .map(|instance| async move {
+                (
+                    instance.name.clone(),
+                    self.burst_capacity_percent(&instance.name)
+                        .await
+                        .unwrap_or(10.0),
+                )
+            })
+            .buffer_unordered(6);
+
+        let mut overload_instances = 0;
+        while let Some((instance_name, b)) = burst_capacities.next().await {
+            if b < 0.01 {
+                overload_instances += 1;
+            }
+            log::debug!("{instance_name} has burst capacity {b}%");
+        }
+
+        Ok((overload_instances as f64 / j.instances.len() as f64) * 8.0)
     }
 }
 

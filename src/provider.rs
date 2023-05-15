@@ -22,13 +22,13 @@ pub trait Provider: Send + Sync + 'static {
     ) -> anyhow::Result<()>;
 
     /// Calculates an "overload" value for all servers that were created by this provider. If this is greater than 1, then more servers may be spawned out of nowhere. Otherwise, the number of servers will be gradually reduced down to the specified value. Not all providers support this method, so it has a default dummy implementation.
-    async fn overload(&self) -> f64 {
-        0.0
+    async fn overload(&self) -> anyhow::Result<f64> {
+        Ok(0.0)
     }
 }
 
 async fn system(cmd: &str) -> anyhow::Result<String> {
-    static SEMAPH: Semaphore = Semaphore::new(6);
+    static SEMAPH: Semaphore = Semaphore::new(16);
     let _guard = SEMAPH.acquire().await;
     let child = smol::process::Command::new("sh")
         .arg("-c")

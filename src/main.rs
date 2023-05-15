@@ -39,10 +39,15 @@ fn main() {
             smol::spawn(loop_provision(
                 group.to_string(),
                 group_cfg.clone(),
+                provider.clone(),
+            ))
+            .detach();
+            smol::spawn(loop_frontline(
+                group.to_string(),
+                group_cfg.clone(),
                 provider,
             ))
             .detach();
-            smol::spawn(loop_frontline(group.to_string(), group_cfg.clone())).detach();
         }
 
         smol::future::pending().await
