@@ -40,7 +40,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc
                         adjusted_frontline.fetch_add(increment, Ordering::SeqCst);
                         // adjusted_frontline.fetch_min(base_frontline * 4, Ordering::SeqCst);
                     } else {
-                        adjusted_frontline.fetch_sub(increment, Ordering::SeqCst);
+                        adjusted_frontline.fetch_sub(1, Ordering::SeqCst);
                         adjusted_frontline.fetch_max(base_frontline, Ordering::SeqCst);
                     }
                     log::info!(

@@ -6,7 +6,7 @@ use smol::lock::Semaphore;
 use smol_timeout::TimeoutExt;
 
 pub async fn ssh_execute(host: &str, cmd: &str) -> anyhow::Result<String> {
-    static SSH_SEMAPHORE: Lazy<Semaphore> = Lazy::new(|| Semaphore::new(512));
+    static SSH_SEMAPHORE: Lazy<Semaphore> = Lazy::new(|| Semaphore::new(32));
     let _guard = SSH_SEMAPHORE.acquire().await;
 
     let status = smol::process::Command::new("ssh")
@@ -27,9 +27,9 @@ pub async fn ssh_execute(host: &str, cmd: &str) -> anyhow::Result<String> {
         .await
         .context("timeout in SSH after 300 secs")??;
 
-    if !status.status.success() {
-        anyhow::bail!("failed with status {:?}", status)
-    }
+    // if !status.status.success() {
+    //     anyhow::bail!("failed with status {:?}", status)
+    // }
     log::trace!("ssh <{host}> {cmd}");
     Ok(String::from_utf8_lossy(&status.stdout).into())
 }
