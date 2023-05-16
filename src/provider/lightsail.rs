@@ -19,6 +19,8 @@ pub struct LightsailConfig {
 
     pub bundle_id: String,
     pub key_pair_name: String,
+
+    pub target_cpu_usage: f64,
 }
 
 pub struct LightsailProvider {
@@ -40,8 +42,33 @@ impl LightsailProvider {
             availability_zone: _,
             bundle_id: _,
             key_pair_name: _,
+            target_cpu_usage: _,
         } = &self.cfg;
         let result = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail get-instance-metric-data --instance-name {aws_name} --metric-name BurstCapacityPercentage --unit Percent --start-time $(date -u -d '1 hour ago' +%FT%TZ) --end-time $(date -u +%FT%TZ) --period 600 --statistics Average")).await?;
+        let result: serde_json::Value = serde_json::from_str(&result)?;
+        let data = result["metricData"]
+            .as_array()
+            .context("metricData not an array")?
+            .iter()
+            .max_by_key(|v| v["timestamp"].as_f64().unwrap_or(0.0) as u64)
+            .context("metricData has no last")?["average"]
+            .as_f64()
+            .context("metricData last average no exist")?;
+        Ok(data)
+    }
+
+    /// Query the CPU usage percentage of a particular server.
+    async fn cpu_usage_percent(&self, aws_name: &str) -> anyhow::Result<f64> {
+        let LightsailConfig {
+            access_key_id,
+            secret_access_key,
+            region,
+            availability_zone: _,
+            bundle_id: _,
+            key_pair_name: _,
+            target_cpu_usage: _,
+        } = &self.cfg;
+        let result = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail get-instance-metric-data --instance-name {aws_name} --metric-name CPUUtilization --unit Percent --start-time $(date -u -d '1 hour ago' +%FT%TZ) --end-time $(date -u +%FT%TZ) --period 600 --statistics Average")).await?;
         let result: serde_json::Value = serde_json::from_str(&result)?;
         let data = result["metricData"]
             .as_array()
@@ -137,30 +164,27 @@ impl Provider for LightsailProvider {
             availability_zone: _,
             bundle_id: _,
             key_pair_name: _,
+            target_cpu_usage,
         } = &self.cfg;
         let s = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail get-instances")).await?;
         let j: MultiInstances = serde_json::from_str(&s)?;
 
-        let mut burst_capacities = futures_util::stream::iter(j.instances.clone().into_iter())
+        let mut cpu_usages = futures_util::stream::iter(j.instances.clone().into_iter())
             .map(|instance| async move {
                 (
                     instance.name.clone(),
-                    self.burst_capacity_percent(&instance.name)
-                        .await
-                        .unwrap_or(10.0),
+                    self.cpu_usage_percent(&instance.name).await.unwrap_or(0.0),
                 )
             })
             .buffer_unordered(6);
 
-        let mut overload_instances = 0;
-        while let Some((instance_name, b)) = burst_capacities.next().await {
-            if b < 0.01 {
-                overload_instances += 1;
-            }
-            log::debug!("{instance_name} has burst capacity {b}%");
+        let mut total_cpu_usage = 0.0;
+        while let Some((instance_name, cpu)) = cpu_usages.next().await {
+            total_cpu_usage += cpu;
+            log::debug!("{instance_name} has CPU usage {:.2}%", cpu);
         }
 
-        Ok((overload_instances as f64 / j.instances.len() as f64) * 8.0)
+        Ok((total_cpu_usage / j.instances.len() as f64) / *target_cpu_usage)
     }
 }
 

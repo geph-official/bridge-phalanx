@@ -78,7 +78,7 @@ async fn loop_provision_once(
     }
 
     anyhow::Ok(())
-}.timeout(Duration::from_secs(300)).await.ok_or_else(|| anyhow::anyhow!("timeout"))?
+}.timeout(Duration::from_secs(600)).await.ok_or_else(|| anyhow::anyhow!("timeout"))?
 }
 
 fn new_id() -> String {
