@@ -173,18 +173,22 @@ impl Provider for LightsailProvider {
             .map(|instance| async move {
                 (
                     instance.name.clone(),
-                    self.cpu_usage_percent(&instance.name).await.unwrap_or(0.0),
+                    self.cpu_usage_percent(&instance.name).await.ok(),
                 )
             })
             .buffer_unordered(6);
 
         let mut total_cpu_usage = 0.0;
+        let mut count = 0;
         while let Some((instance_name, cpu)) = cpu_usages.next().await {
-            total_cpu_usage += cpu;
-            log::debug!("{instance_name} has CPU usage {:.2}%", cpu);
+            if let Some(cpu) = cpu {
+                total_cpu_usage += cpu;
+                log::debug!("{instance_name} has CPU usage {:.2}%", cpu);
+                count += 1;
+            }
         }
 
-        Ok((total_cpu_usage / j.instances.len() as f64) / *target_cpu_usage)
+        Ok((total_cpu_usage / count as f64) / *target_cpu_usage)
     }
 }
 
