@@ -145,12 +145,20 @@ impl Provider for LightsailProvider {
                 let secret_access_key = secret_access_key.clone();
                 let region = region.clone();
                 let instance_name = instance.name;
-                system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail delete-instance --instance-name {instance_name}")).await?;
+                if let Err(err) = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail delete-instance --instance-name {instance_name}")).await {
+                    log::warn!(
+                        "<{availability_zone}> FAILED TO delete {} {:?}: {:?}",
+                        instance_name,
+                        instance.public_ip_address,
+                        err
+                    );
+                } else {
                 log::warn!(
                     "<{availability_zone}> deleted {} {:?}",
                     instance_name,
                     instance.public_ip_address
                 );
+            }
             }
         }
         Ok(())
