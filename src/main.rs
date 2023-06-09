@@ -1,5 +1,4 @@
-use std::sync::Arc;
-
+use async_compat::Compat;
 use config::{ProviderConfig, CONFIG};
 use loop_frontline::loop_frontline;
 use loop_gfw::loop_gfw;
@@ -7,9 +6,10 @@ use loop_onoff::loop_onoff;
 use loop_provision::loop_provision;
 use loop_prune::loop_prune;
 use provider::{
-    hetzner::HetznerProvider, lightsail::LightsailProvider, scaleway::ScalewayProvider,
-    vultr::VultrProvider, Provider,
+    hetzner::HetznerProvider, lightsail::LightsailProvider, ovh::OVHProvider,
+    scaleway::ScalewayProvider, vultr::VultrProvider, Provider,
 };
+use std::sync::Arc;
 
 mod config;
 mod database;
@@ -23,7 +23,7 @@ mod ssh;
 
 fn main() {
     env_logger::init();
-    smol::block_on(async {
+    smol::block_on(Compat::new(async {
         smol::spawn(loop_onoff()).detach();
         smol::spawn(loop_gfw()).detach();
         smol::spawn(loop_prune()).detach();
@@ -35,6 +35,7 @@ fn main() {
                 ProviderConfig::Vultr(cfg) => Arc::new(VultrProvider::new(cfg.clone())),
                 ProviderConfig::Scaleway(cfg) => Arc::new(ScalewayProvider::new(cfg.clone())),
                 ProviderConfig::Hetzner(cfg) => Arc::new(HetznerProvider::new(cfg.clone())),
+                ProviderConfig::OVH(cfg) => Arc::new(OVHProvider::new(cfg.clone())),
             };
             smol::spawn(loop_provision(
                 group.to_string(),
@@ -51,5 +52,5 @@ fn main() {
         }
 
         smol::future::pending().await
-    })
+    }))
 }

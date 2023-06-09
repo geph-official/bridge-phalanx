@@ -1,7 +1,7 @@
 pub mod hetzner;
 pub mod lightsail;
+pub mod ovh;
 pub mod scaleway;
-
 pub mod vultr;
 
 use std::process::Stdio;

@@ -1,7 +1,6 @@
 use std::{
     ops::Deref,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
     },
     time::Duration,
