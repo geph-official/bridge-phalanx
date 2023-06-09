@@ -111,17 +111,6 @@ impl Provider for ScalewayProvider {
                 .as_str()
                 .map(|s| s.to_string());
             if let Some(ip_addr) = ip_addr {
-                if USED_IPS
-                    .write()
-                    .insert(
-                        ip_addr.clone(),
-                        SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
-                    )
-                    .is_some()
-                {
-                    anyhow::bail!("already seen IP {ip_addr}");
-                }
-
                 log::debug!("got IP address {id}: {ip_addr}");
                 wait_until_reachable(&ip_addr).await;
                 log::debug!("fully done {id}");

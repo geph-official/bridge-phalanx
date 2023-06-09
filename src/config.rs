@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use crate::provider::{
-    hetzner::HetznerConfig, lightsail::LightsailConfig, ovh::OVHConfig, scaleway::ScalewayConfig,
+    hetzner::HetznerConfig, lightsail::LightsailConfig, ovh::OvhConfig, scaleway::ScalewayConfig,
     vultr::VultrConfig,
 };
 
@@ -39,7 +39,7 @@ pub enum ProviderConfig {
     Vultr(VultrConfig),
     Scaleway(ScalewayConfig),
     Hetzner(HetznerConfig),
-    OVH(OVHConfig),
+    Ovh(OvhConfig),
 }
 
 /// Global configuration file

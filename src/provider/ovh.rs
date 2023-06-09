@@ -1,35 +1,47 @@
+use std::collections::BTreeMap;
+
+use crate::provider::{system, wait_until_reachable};
+
 use super::Provider;
+use anyhow::Context;
+use async_compat::CompatExt;
 use async_trait::async_trait;
 use openstack::waiter::Waiter;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OVHConfig {
+pub struct OvhConfig {
+    env_variables: BTreeMap<String, String>,
+
     flavor: String,
     network: String,
     image: String,
     keypair_name: String,
 }
 
-pub struct OVHProvider {
-    cfg: OVHConfig,
+pub struct OvhProvider {
+    cfg: OvhConfig,
 }
 
-impl OVHProvider {
-    pub fn new(cfg: OVHConfig) -> Self {
+impl OvhProvider {
+    pub fn new(cfg: OvhConfig) -> Self {
         Self { cfg }
     }
 }
 
 #[async_trait]
-impl Provider for OVHProvider {
+impl Provider for OvhProvider {
     /// Creates a new server, returning an IP address reachable through SSH port 22 and "root".
     async fn create_server(&self, name: &str) -> anyhow::Result<String> {
-        // NOTE: Requires us to `source` a config file (e.g. openrc.sh) for the cloud project's OpenStack user.
-        // Alternatively, we can also instantiate the `Cloud` object from a local config YAML.
+        // Horrifying hax: set the env variables here lol
+        for (k, v) in self.cfg.env_variables.iter() {
+            std::env::set_var(k, v);
+        }
+
         let os = openstack::Cloud::from_env()
+            .compat()
             .await
-            .expect("Failed to create a Cloud object from the environment");
+            .context("Failed to create a Cloud object from the environment")?;
 
         log::info!("Creating OVH server...");
         let config = self.cfg.clone();
@@ -40,7 +52,7 @@ impl Provider for OVHProvider {
             .with_keypair(config.keypair_name)
             .create()
             .await
-            .expect("Failed to create OVH server");
+            .context("Failed to create OVH server")?;
         {
             let current = waiter.current_state();
             log::info!(
@@ -56,7 +68,7 @@ impl Provider for OVHProvider {
         let server = waiter
             .wait()
             .await
-            .expect("Server did not reach ACTIVE state");
+            .context("Server did not reach ACTIVE state")?;
         log::info!(
             "Successfully created server -- ID = {}, Name = {}, Status = {:?}, Power = {:?}",
             server.id(),
@@ -65,8 +77,20 @@ impl Provider for OVHProvider {
             server.power_state()
         );
         let ipv4 = server
-            .access_ipv4()
-            .expect("newly created server has no IPv4 address");
+            .addresses()
+            .values()
+            .flat_map(|val| val.iter())
+            .find_map(|addr| {
+                if addr.addr.is_ipv4() {
+                    Some(addr.addr)
+                } else {
+                    None
+                }
+            })
+            .context("no ipv4 address?!?!?!")?;
+        wait_until_reachable(&ipv4.to_string()).await;
+        // enable root login
+        system(&format!("ssh -o StrictHostKeyChecking=no debian@{ipv4} sudo cp ~admin/.ssh/authorized_keys ~root/.ssh/authorized_keys")).await?;
         Ok(ipv4.to_string())
     }
 
@@ -75,9 +99,13 @@ impl Provider for OVHProvider {
         &self,
         pred: Box<dyn Fn(String) -> bool + Send + 'static>,
     ) -> anyhow::Result<()> {
+        for (k, v) in self.cfg.env_variables.iter() {
+            std::env::set_var(k, v);
+        }
+
         let os = openstack::Cloud::from_env()
             .await
-            .expect("Failed to create a Cloud object from the environment");
+            .context("Failed to create a Cloud object from the environment")?;
 
         let servers = os.list_servers().await?;
         for server in servers.iter() {

@@ -1,10 +1,4 @@
-use std::{
-    ops::Deref,
-    sync::{
-        Arc,
-    },
-    time::Duration,
-};
+use std::{ops::Deref, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use futures_util::{stream::FuturesUnordered, StreamExt};

@@ -27,6 +27,9 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc
     let _lala_loop = {
         let adjusted_frontline = adjusted_frontline.clone();
         let base_frontline = cfg.frontline;
+        if base_frontline == 0 {
+            return;
+        }
         let provider = provider.clone();
         let alloc_group = alloc_group.clone();
         smol::spawn(async move {
