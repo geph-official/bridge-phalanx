@@ -26,14 +26,16 @@ async fn loop_gfw_inner() -> anyhow::Result<()> {
     bridges.shuffle(&mut rand::thread_rng());
     let mut tasks = vec![];
     for bridge in bridges {
+        if bridge.alloc_group.contains("hetz") {
+            continue;
+        }
         static SMALL_SEMAPHORE: Semaphore = Semaphore::new(32);
         tasks.push(smol::spawn(async move {
             let _guard = SMALL_SEMAPHORE.acquire().await;
             let is_blocked = {
-                
                 ssh_execute(&bridge.ip_addr, "ping -W 2 -c 10 10010.com || true")
-                        .await?
-                        .contains("100%")
+                    .await?
+                    .contains("100%")
                 // if !blocked_in_china {
                 //     if bridge.status == "frontline" && (bridge.alloc_group.contains("scw")||bridge.alloc_group.contains("eu_north")) ||bridge.alloc_group.contains("hetzner"){
                 //     // not blocked in china, but maybe in iran

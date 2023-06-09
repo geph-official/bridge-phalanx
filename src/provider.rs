@@ -42,7 +42,9 @@ async fn system(cmd: &str) -> anyhow::Result<String> {
     if std_err.contains("An error") {
         anyhow::bail!("{}", std_err.trim())
     }
-    // eprintln!(">> {}\n<< {}", cmd, output);
+    if cmd.contains("ssh") {
+        log::debug!("SYSTEM >> {}\n<< {:?}  / {:?}", cmd, std_output, std_err);
+    }
     anyhow::Ok(std_output)
 }
 

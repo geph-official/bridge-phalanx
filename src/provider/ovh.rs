@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time::Duration};
 
 use crate::provider::{system, wait_until_reachable};
 
@@ -90,7 +90,9 @@ impl Provider for OvhProvider {
             .context("no ipv4 address?!?!?!")?;
         wait_until_reachable(&ipv4.to_string()).await;
         // enable root login
-        system(&format!("ssh -o StrictHostKeyChecking=no debian@{ipv4} sudo cp ~admin/.ssh/authorized_keys ~root/.ssh/authorized_keys")).await?;
+        system(&dbg!(format!("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null debian@{ipv4} sudo cp /home/debian/.ssh/authorized_keys /root/.ssh/authorized_keys"))).await?;
+        log::debug!("ENABLED ROOT ACCESS FOR OVH {ipv4}");
+
         Ok(ipv4.to_string())
     }
 
