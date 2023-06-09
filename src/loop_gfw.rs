@@ -30,11 +30,10 @@ async fn loop_gfw_inner() -> anyhow::Result<()> {
         tasks.push(smol::spawn(async move {
             let _guard = SMALL_SEMAPHORE.acquire().await;
             let is_blocked = {
-                let blocked_in_china =
-                    ssh_execute(&bridge.ip_addr, "ping -W 2 -c 10 10010.com || true")
+                
+                ssh_execute(&bridge.ip_addr, "ping -W 2 -c 10 10010.com || true")
                         .await?
-                        .contains("100%");
-                blocked_in_china
+                        .contains("100%")
                 // if !blocked_in_china {
                 //     if bridge.status == "frontline" && (bridge.alloc_group.contains("scw")||bridge.alloc_group.contains("eu_north")) ||bridge.alloc_group.contains("hetzner"){
                 //     // not blocked in china, but maybe in iran

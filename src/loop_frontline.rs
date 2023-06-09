@@ -70,7 +70,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc
 #[allow(clippy::comparison_chain)]
 async fn loop_frontline_inner(
     alloc_group: &str,
-    cfg: &GroupConfig,
+    _cfg: &GroupConfig,
     adjusted_frontline: Arc<AtomicUsize>,
 ) -> anyhow::Result<()> {
     let adjusted_frontline = adjusted_frontline.load(Ordering::SeqCst);
