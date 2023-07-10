@@ -26,6 +26,8 @@ pub struct GroupConfig {
     pub reserve: usize,
     #[serde(default)]
     pub override_group: Option<String>,
+    #[serde(default)]
+    pub no_antigfw: bool,
     pub provider: ProviderConfig,
     /// Maximum lifetime.
     pub max_lifetime_hr: f64,

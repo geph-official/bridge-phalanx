@@ -79,7 +79,7 @@ async fn loop_frontline_inner(
     let adjusted_frontline = adjusted_frontline.load(Ordering::SeqCst);
     // when not enough is in the frontline, move to frontline
     let (frontline_count,): (i64,) = sqlx::query_as(
-        "select count(bridge_id) from bridges where status = 'frontline' and alloc_group = $1",
+        "select count(bridge_id) from bridges where (status = 'frontline' or status = 'blocked') and alloc_group = $1",
     )
     .bind(alloc_group)
     .fetch_one(DATABASE.deref())

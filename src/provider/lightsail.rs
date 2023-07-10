@@ -121,7 +121,7 @@ impl Provider for LightsailProvider {
         log::debug!(
             "<{availability_zone}> instance {name} has ip {ip_addr}, enabling root access..."
         );
-        system(&format!("ssh -o StrictHostKeyChecking=no admin@{ip_addr} sudo cp ~admin/.ssh/authorized_keys ~root/.ssh/authorized_keys")).await?;
+        system(&format!("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{ip_addr} sudo cp ~admin/.ssh/authorized_keys ~root/.ssh/authorized_keys")).await?;
         Ok(ip_addr)
     }
 
@@ -134,6 +134,7 @@ impl Provider for LightsailProvider {
         let secret_access_key = self.cfg.secret_access_key.clone();
         let region = self.cfg.region.clone();
         let s = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail get-instances")).await?;
+        log::debug!("{} calling retain on aws", availability_zone);
         let j: MultiInstances = serde_json::from_str(&s)?;
         for instance in j.instances {
             if !pred(instance.name.replace("aws-phalanx-", ""))

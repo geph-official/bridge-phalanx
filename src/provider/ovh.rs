@@ -33,6 +33,8 @@ impl OvhProvider {
 impl Provider for OvhProvider {
     /// Creates a new server, returning an IP address reachable through SSH port 22 and "root".
     async fn create_server(&self, name: &str) -> anyhow::Result<String> {
+        // wait to prevent rapid IP reuse
+        smol::Timer::after(Duration::from_secs(60)).await;
         // Horrifying hax: set the env variables here lol
         for (k, v) in self.cfg.env_variables.iter() {
             std::env::set_var(k, v);
