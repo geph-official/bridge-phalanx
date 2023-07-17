@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    path::Path,
-    time::{Instant, SystemTime, UNIX_EPOCH},
-};
+use std::{collections::HashMap, path::Path, time::Instant};
 
 use acidjson::AcidJson;
 use anyhow::Context;

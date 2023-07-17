@@ -6,8 +6,8 @@ use loop_onoff::loop_onoff;
 use loop_provision::loop_provision;
 use loop_prune::loop_prune;
 use provider::{
-    hetzner::HetznerProvider, lightsail::LightsailProvider, ovh::OvhProvider,
-    scaleway::ScalewayProvider, vultr::VultrProvider, Provider,
+    hetzner::HetznerProvider, lightsail::LightsailProvider, oneprovider::OneCloudProvider,
+    ovh::OvhProvider, scaleway::ScalewayProvider, vultr::VultrProvider, Provider,
 };
 use std::sync::Arc;
 
@@ -36,6 +36,7 @@ fn main() {
                 ProviderConfig::Scaleway(cfg) => Arc::new(ScalewayProvider::new(cfg.clone())),
                 ProviderConfig::Hetzner(cfg) => Arc::new(HetznerProvider::new(cfg.clone())),
                 ProviderConfig::Ovh(cfg) => Arc::new(OvhProvider::new(cfg.clone())),
+                ProviderConfig::Onecloud(cfg) => Arc::new(OneCloudProvider::new(cfg.clone())),
             };
             smol::spawn(
                 loop_provision(group.to_string(), group_cfg.clone(), provider.clone()).compat(),

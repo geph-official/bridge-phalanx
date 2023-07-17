@@ -9,8 +9,8 @@ use crate::config::CONFIG;
 /// The global database instance.
 pub static DATABASE: Lazy<Pool<Postgres>> = Lazy::new(|| {
     PgPoolOptions::new()
-        .acquire_timeout(Duration::from_secs(5))
-        .idle_timeout(Some(Duration::from_secs(5)))
+        .acquire_timeout(Duration::from_secs(15))
+        .idle_timeout(Some(Duration::from_secs(15)))
         .max_connections(6)
         .connect_lazy(&CONFIG.postgres_url)
         .unwrap()

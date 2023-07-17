@@ -393,6 +393,7 @@ dependencies = [
  "scopeguard",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "serde_yaml",
  "smol",
  "smol-timeout",

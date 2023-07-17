@@ -1,5 +1,6 @@
 pub mod hetzner;
 pub mod lightsail;
+pub mod oneprovider;
 pub mod ovh;
 pub mod scaleway;
 pub mod vultr;
@@ -39,7 +40,7 @@ async fn system(cmd: &str) -> anyhow::Result<String> {
     let output = child.output().await?;
     let std_output: String = String::from_utf8_lossy(&output.stdout).into();
     let std_err: String = String::from_utf8_lossy(&output.stderr).into();
-    if std_err.contains("An error") {
+    if std_err.contains("An error") || !output.status.success() {
         anyhow::bail!("{}", std_err.trim())
     }
     if cmd.contains("ssh") {
