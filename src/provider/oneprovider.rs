@@ -73,7 +73,7 @@ impl Provider for OneCloudProvider {
             .as_str()
             .context("no password")?;
         system(&format!("sshpass -p {password} ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@{ip_addr}")).await?;
-        ssh_execute(&ip_addr, "apt update -y").await?;
+        // ssh_execute(&ip_addr, "apt update -y").await?;
         Ok(ip_addr)
     }
 
