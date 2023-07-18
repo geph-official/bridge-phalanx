@@ -117,7 +117,7 @@ impl Provider for OneCloudProvider {
 }
 
 async fn delete_server(cfg: &OneCloudConfig, phalanx_id: &str) -> anyhow::Result<()> {
-    let delete_server_req = vec![("vm_id", phalanx_id), ("confirm_close", "true")];
+    let delete_server_req = vec![("vm_id", phalanx_id), ("confirm_close", "false")];
 
     let form_data = serde_urlencoded::to_string(delete_server_req)?;
 
