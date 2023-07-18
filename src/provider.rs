@@ -29,8 +29,8 @@ pub trait Provider: Send + Sync + 'static {
 }
 
 async fn system(cmd: &str) -> anyhow::Result<String> {
-    static SEMAPH: Semaphore = Semaphore::new(16);
-    let _guard = SEMAPH.acquire().await;
+    // static SEMAPH: Semaphore = Semaphore::new(16);
+    // let _guard = SEMAPH.acquire().await;
     let child = smol::process::Command::new("sh")
         .arg("-c")
         .arg(cmd)
