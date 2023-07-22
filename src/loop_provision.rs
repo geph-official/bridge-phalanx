@@ -60,7 +60,7 @@ async fn loop_provision_once(
             let remote_alloc_group = cfg.override_group.as_deref().unwrap_or(alloc_group);
             // set into reserve status
             let bridge_secret = &CONFIG.bridge_secret;
-            ssh_execute(&addr, &format!("wget -qO- https://gist.githubusercontent.com/nullchinchilla/ecf752dfb3ff33635d1f6487b5a87531/raw/73261714f3d1e8f5eeaf589c40ce9aeb0c0e3653/deploy-bridge-new.sh | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh")).await?;
+            ssh_execute(&addr, &format!("wget -qO- https://gist.githubusercontent.com/nullchinchilla/ecf752dfb3ff33635d1f6487b5a87531/raw/7102413cb4f0e3569ff7b1058a4d46bf5bc2ba8d/deploy-bridge-new.sh | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh")).await?;
             sqlx::query("insert into bridges (bridge_id, ip_addr, alloc_group, status, change_time) values ($1, $2, $3, $4, NOW())").bind(id).bind(addr).bind(alloc_group).bind("reserve").execute(DATABASE.deref()).await?;
             anyhow::Ok(())
             });
