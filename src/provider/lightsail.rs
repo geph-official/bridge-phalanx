@@ -137,6 +137,13 @@ impl Provider for LightsailProvider {
         log::debug!("{} calling retain on aws", availability_zone);
         let j: MultiInstances = serde_json::from_str(&s)?;
         for instance in j.instances {
+            if instance.state["name"] != "running" {
+                log::debug!(
+                    "skipping instance {} when delete due to not running",
+                    instance.name
+                );
+                continue;
+            }
             if !pred(instance.name.replace("aws-phalanx-", ""))
                 && instance.name.contains("aws-phalanx-")
             {
@@ -178,7 +185,7 @@ impl Provider for LightsailProvider {
         let s = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail get-instances")).await?;
         let j: MultiInstances = serde_json::from_str(&s)?;
 
-        let mut cpu_usages = futures_util::stream::iter(j.instances.clone().into_iter())
+        let mut cpu_usages = futures_util::stream::iter(j.instances.clone())
             .map(|instance| async move {
                 (
                     instance.name.clone(),
@@ -216,6 +223,8 @@ struct Inner {
     name: String,
     #[serde(rename = "publicIpAddress")]
     public_ip_address: Option<String>,
+
+    state: serde_json::Value,
 }
 
 /// mangle a bridge ID to an AWS name
