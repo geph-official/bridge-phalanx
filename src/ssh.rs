@@ -6,7 +6,7 @@ use smol::lock::Semaphore;
 use smol_timeout::TimeoutExt;
 
 pub async fn ssh_execute(host: &str, cmd: &str) -> anyhow::Result<String> {
-    static SSH_SEMAPHORE: Lazy<Semaphore> = Lazy::new(|| Semaphore::new(32));
+    static SSH_SEMAPHORE: Lazy<Semaphore> = Lazy::new(|| Semaphore::new(128));
     let _guard = SSH_SEMAPHORE.acquire().await;
 
     let status = smol::process::Command::new("ssh")

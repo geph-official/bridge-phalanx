@@ -35,6 +35,14 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc
         smol::spawn(async move {
             let mut timer = smol::Timer::interval(Duration::from_secs(600));
             loop {
+                let (current_live,): (i64,) = sqlx::query_as(
+                    "select count(*) from bridges where alloc_group = $1 and status = 'frontline'",
+                )
+                .bind(&alloc_group)
+                .fetch_one(DATABASE.deref())
+                .await
+                .expect("could not fetch current live");
+
                 let current_frontline = adjusted_frontline.load(Ordering::SeqCst);
                 let increment = (current_frontline / 10).max(1).min(5);
                 let fallible = async {
@@ -42,7 +50,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc
                     if overload > 1.0 {
                         adjusted_frontline.fetch_add(increment, Ordering::SeqCst);
                         // adjusted_frontline.fetch_min(base_frontline * 4, Ordering::SeqCst);
-                    } else {
+                    } else if adjusted_frontline.load(Ordering::SeqCst) >= current_live as _ {
                         adjusted_frontline.fetch_sub(increment, Ordering::SeqCst);
                         adjusted_frontline.fetch_max(base_frontline, Ordering::SeqCst);
                     }
