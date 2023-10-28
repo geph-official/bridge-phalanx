@@ -17,7 +17,7 @@ pub async fn loop_onoff() {
         if let Err(err) = async {
             anyhow::Ok(
                 loop_onoff_once(&last_status)
-                    .timeout(Duration::from_secs(120))
+                    .timeout(Duration::from_secs(600))
                     .await
                     .context("timeout")??,
             )
