@@ -23,9 +23,9 @@ pub async fn ssh_execute(host: &str, cmd: &str) -> anyhow::Result<String> {
         .stderr(Stdio::piped())
         .spawn()?
         .output()
-        .timeout(Duration::from_secs(300))
+        .timeout(Duration::from_secs(3600))
         .await
-        .context("timeout in SSH after 300 secs")??;
+        .context("timeout in SSH after 3600 secs")??;
 
     // if !status.status.success() {
     //     anyhow::bail!("failed with status {:?}", status)
