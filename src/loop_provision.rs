@@ -61,6 +61,7 @@ async fn loop_provision_once(
             // set into reserve status
             let bridge_secret = &CONFIG.bridge_secret;
             ssh_execute(&addr, &format!("wget -qO- https://gist.githubusercontent.com/nullchinchilla/ecf752dfb3ff33635d1f6487b5a87531/raw/c9de7443bcb6e1fc03f3bc7ee91e101eded9ac36/deploy-bridge-new.sh | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh")).await?;
+            ssh_execute(&addr, &format!("shutdown -h +{}", (cfg.max_lifetime_hr / 60) as u64)).await?;
             sqlx::query("insert into bridges (bridge_id, ip_addr, alloc_group, status, change_time) values ($1, $2, $3, $4, NOW())").bind(id).bind(addr).bind(alloc_group).bind("reserve").execute(DATABASE.deref()).await?;
             anyhow::Ok(())
             });
