@@ -137,13 +137,13 @@ impl Provider for LightsailProvider {
         log::debug!("{} calling retain on aws", availability_zone);
         let j: MultiInstances = serde_json::from_str(&s)?;
         for instance in j.instances {
-            if instance.state["name"] != "running" {
-                log::debug!(
-                    "skipping instance {} when delete due to not running",
-                    instance.name
-                );
-                continue;
-            }
+            // if instance.state["name"] != "running" {
+            //     log::debug!(
+            //         "skipping instance {} when delete due to not running",
+            //         instance.name
+            //     );
+            //     continue;
+            // }
             if !pred(instance.name.replace("aws-phalanx-", ""))
                 && instance.name.contains("aws-phalanx-")
             {
