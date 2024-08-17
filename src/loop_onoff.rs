@@ -59,14 +59,14 @@ async fn loop_onoff_once(last_status: &DashMap<String, String>) -> anyhow::Resul
                     "frontline" => {
                         ssh_execute(
                             &bridge.ip_addr,
-                            "systemctl enable geph4-bridge; (systemctl is-active --quiet geph4-bridge || systemctl start geph4-bridge)",
+                            "systemctl enable geph4-bridge; (systemctl is-active --quiet geph4-bridge || systemctl start geph4-bridge); systemctl enable geph5-bridge; (systemctl is-active --quiet geph5-bridge || systemctl start geph5-bridge)",
                         )
                         .await?;
                     }
                     "blocked" | "reserve" => {
                         ssh_execute(
                             &bridge.ip_addr,
-                            "systemctl stop geph4-bridge; systemctl disable geph4-bridge",
+                            "systemctl stop geph4-bridge; systemctl disable geph4-bridge; systemctl stop geph5-bridge; systemctl disable geph5-bridge",
                         )
                         .await?;
                     }
