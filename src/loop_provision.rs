@@ -7,7 +7,7 @@ use rand::Rng;
 use smol_timeout::TimeoutExt;
 
 use crate::{
-    config::{GroupConfig, CONFIG},
+    config::{GroupConfig, Service, CONFIG, EARENDIL_GIST, GEPH4_GIST, GEPH5_GIST},
     database::{BridgeInfo, DATABASE},
     provider::Provider,
     ssh::ssh_execute,
@@ -59,7 +59,15 @@ async fn loop_provision_once(
             let remote_alloc_group = cfg.override_group.as_deref().unwrap_or(alloc_group);
             // set into reserve status
             let bridge_secret = &CONFIG.bridge_secret;
-            ssh_execute(&addr, &format!("wget -qO- https://gist.githubusercontent.com/nullchinchilla/ecf752dfb3ff33635d1f6487b5a87531/raw/5d0062defdd30e9e10394e4c719ff12a65399121/deploy-bridge-new.sh | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh")).await?;
+            if cfg.services.contains(&Service::Geph4) {
+                ssh_execute(&addr, &format!("wget -qO- {} | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh", GEPH4_GIST)).await?;
+            }
+            if cfg.services.contains(&Service::Geph5) {
+                ssh_execute(&addr, &format!("wget -qO- {} | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh", GEPH5_GIST)).await?;
+            }
+            if cfg.services.contains(&Service::Earendil) {
+                ssh_execute(&addr, &format!("wget -qO- {} | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh", EARENDIL_GIST)).await?;
+            }
             // ssh_execute(&addr, &format!("shutdown -h +{}", (cfg.max_lifetime_hr / 60.0) as u64)).await?;
             sqlx::query("insert into bridges (bridge_id, ip_addr, alloc_group, status, change_time) values ($1, $2, $3, $4, NOW())").bind(id).bind(addr).bind(alloc_group).bind("reserve").execute(DATABASE.deref()).await?;
             anyhow::Ok(())
