@@ -42,9 +42,9 @@ pub enum Service {
     Earendil,
 }
 
-pub const GEPH4_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/746ec2007cc293af881f7354405cfb6e/raw/acf2f1546d6bdb6217154bdd01ca9aa250c18f30/deploy-bridge-geph4.sh";
-pub const GEPH5_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/64a3ded0b62f1decef65c84f43e45dbe/raw/2ddb44c93c4c5ac3f70b0775ce6252c246c0d726/deploy-bridge-geph5.sh";
-pub const EARENDIL_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/26ccd7af71f403df1495e4038a6ce9ff/raw/be2435639728590094b2987780c0671265432984/deploy-bridge-earendil.sh";
+pub const GEPH4_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/746ec2007cc293af881f7354405cfb6e/raw/deploy-bridge-geph4.sh";
+pub const GEPH5_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/64a3ded0b62f1decef65c84f43e45dbe/raw/deploy-bridge-geph5.sh";
+pub const EARENDIL_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/26ccd7af71f403df1495e4038a6ce9ff/raw/deploy-bridge-earendil.sh";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "type")]

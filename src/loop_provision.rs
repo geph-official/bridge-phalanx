@@ -59,14 +59,15 @@ async fn loop_provision_once(
             let remote_alloc_group = cfg.override_group.as_deref().unwrap_or(alloc_group);
             // set into reserve status
             let bridge_secret = &CONFIG.bridge_secret;
+            let cachebust = rand::thread_rng().gen::<u64>();
             if cfg.services.contains(&Service::Geph4) {
-                ssh_execute(&addr, &format!("wget -qO- {} | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh", GEPH4_GIST)).await?;
+                ssh_execute(&addr, &format!("wget -qO- {}?cachebust={cachebust} | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh", GEPH4_GIST)).await?;
             }
             if cfg.services.contains(&Service::Geph5) {
-                ssh_execute(&addr, &format!("wget -qO- {} | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh", GEPH5_GIST)).await?;
+                ssh_execute(&addr, &format!("wget -qO- {}?cachebust={cachebust} | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh", GEPH5_GIST)).await?;
             }
             if cfg.services.contains(&Service::Earendil) {
-                ssh_execute(&addr, &format!("wget -qO- {} | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh", EARENDIL_GIST)).await?;
+                ssh_execute(&addr, &format!("wget -qO- {}?cachebust={cachebust} | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh", EARENDIL_GIST)).await?;
             }
             // ssh_execute(&addr, &format!("shutdown -h +{}", (cfg.max_lifetime_hr / 60.0) as u64)).await?;
             sqlx::query("insert into bridges (bridge_id, ip_addr, alloc_group, status, change_time) values ($1, $2, $3, $4, NOW())").bind(id).bind(addr).bind(alloc_group).bind("reserve").execute(DATABASE.deref()).await?;
