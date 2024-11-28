@@ -5,7 +5,7 @@ pub mod ovh;
 pub mod scaleway;
 pub mod vultr;
 
-use std::process::Stdio;
+use std::{process::Stdio, time::Duration};
 
 use async_trait::async_trait;
 use smol::lock::Semaphore;
@@ -51,7 +51,8 @@ async fn system(cmd: &str) -> anyhow::Result<String> {
 
 async fn wait_until_reachable(ip: &str) {
     log::debug!("waiting until {ip} is reachable...");
-    while let Err(err) = system(&format!("until nc -vzw 2 {ip} 22; do sleep 2; done")).await {
-        log::error!("{:?}", err)
+    while let Err(err) = system(&format!("nc -vzw 2 {ip} 22")).await {
+        log::error!("{:?}", err);
+        smol::Timer::after(Duration::from_secs(1)).await;
     }
 }
