@@ -53,6 +53,6 @@ async fn wait_until_reachable(ip: &str) {
     log::debug!("waiting until {ip} is reachable...");
     while let Err(err) = system(&format!("nc -vzw 2 {ip} 22")).await {
         log::error!("{:?}", err);
-        smol::Timer::after(Duration::from_secs(1)).await;
+        smol::Timer::after(Duration::from_secs(2)).await;
     }
 }
