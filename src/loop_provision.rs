@@ -70,7 +70,7 @@ async fn loop_provision_once(
                 ssh_execute(&addr, &format!("wget -qO- {}?cachebust={cachebust} | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh", EARENDIL_GIST)).await?;
             }
             if let Some(max_bandwidth_gb) = cfg.max_bandwidth_gb {
-                ssh_execute(&addr, &format!("wget -qO- {}?cachebust={cachebust} | env MAX_BANDWIDTH_GB={max_bandwidth_gb} sh", LIMIT_BANDWIDTH_GIST)).await?;
+                ssh_execute(&addr, &format!("wget -qO- {}?cachebust={cachebust} | env TRAFFIC_LIMIT_GB={max_bandwidth_gb} sh", LIMIT_BANDWIDTH_GIST)).await?;
             }
             // ssh_execute(&addr, &format!("shutdown -h +{}", (cfg.max_lifetime_hr / 60.0) as u64)).await?;
             sqlx::query("insert into bridges (bridge_id, ip_addr, alloc_group, status, change_time) values ($1, $2, $3, $4, NOW())").bind(id).bind(addr).bind(alloc_group).bind("reserve").execute(DATABASE.deref()).await?;
