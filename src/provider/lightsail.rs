@@ -204,6 +204,11 @@ impl Provider for LightsailProvider {
             }
         }
 
+        log::debug!(
+            "AWS {region} average CPU usage = {}",
+            total_cpu_usage / count as f64
+        );
+
         Ok((total_cpu_usage / count as f64) / *target_cpu_usage)
     }
 }
