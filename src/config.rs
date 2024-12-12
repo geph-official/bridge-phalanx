@@ -32,6 +32,7 @@ pub struct GroupConfig {
     /// Maximum lifetime.
     pub max_lifetime_hr: f64,
     pub services: Vec<Service>,
+    pub max_bandwidth_gb: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -45,6 +46,7 @@ pub enum Service {
 pub const GEPH4_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/746ec2007cc293af881f7354405cfb6e/raw/deploy-bridge-geph4.sh";
 pub const GEPH5_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/64a3ded0b62f1decef65c84f43e45dbe/raw/deploy-bridge-geph5.sh";
 pub const EARENDIL_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/26ccd7af71f403df1495e4038a6ce9ff/raw/deploy-bridge-earendil.sh";
+pub const LIMIT_BANDWIDTH_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/4048244030910c0af9b61c42f98d8e65/raw/enforce-bandwidth-max.sh";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "type")]
