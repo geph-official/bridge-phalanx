@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub async fn loop_prune() {
-    let _all = smol::spawn(loop_prune_all());
+    // let _all = smol::spawn(loop_prune_all());
     join_all(
         CONFIG
             .groups
@@ -18,17 +18,17 @@ pub async fn loop_prune() {
     .await;
 }
 
-async fn loop_prune_all() {
-    loop {
-        if let Err(err) = sqlx::query("delete from bridges where status = 'blocked'")
-            .execute(DATABASE.deref())
-            .await
-        {
-            log::warn!("prune_all error: {:?}", err);
-        }
-        smol::Timer::after(Duration::from_secs(1)).await;
-    }
-}
+// async fn loop_prune_all() {
+//     loop {
+//         if let Err(err) = sqlx::query("delete from bridges where status = 'blocked'")
+//             .execute(DATABASE.deref())
+//             .await
+//         {
+//             log::warn!("prune_all error: {:?}", err);
+//         }
+//         smol::Timer::after(Duration::from_secs(1)).await;
+//     }
+// }
 
 async fn loop_prune_for_group(group_name: &str, group_config: &GroupConfig) {
     let (total_group_count,): (i64,) =
