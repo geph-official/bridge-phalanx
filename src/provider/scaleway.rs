@@ -212,30 +212,48 @@ async fn perform_action(
 }
 
 async fn delete_server(cfg: &ScalewayConfig, scw_server_id: &str) -> anyhow::Result<()> {
-    if let Err(err) = perform_action(cfg, scw_server_id, "terminate").await {
-        log::warn!(
-            "could not terminate ({:?}), deleting instead {}",
-            err,
-            scw_server_id
-        );
-        log::debug!("deleting {}", scw_server_id);
-        let request = Request::delete(format!(
-            "https://api.scaleway.com/instance/v1/zones/{}/servers/{}",
-            cfg.zone, scw_server_id
-        ))
-        .header("X-Auth-Token", &cfg.secret_key)
-        .header("Content-Type", "application/json")
-        .body("")?;
+    // Log that the termination is being initiated
+    log::debug!("Terminating server {}", scw_server_id);
 
-        let mut response = isahc::send_async(request).await?;
-
-        if response.status() != 200 && response.status() != 204 {
-            let body = response
-                .text()
-                .await
-                .context("Failed to read response body")?;
-            anyhow::bail!("delete failed with status {}: {}", response.status(), body);
+    // Use the perform_action function to terminate the server
+    match perform_action(cfg, scw_server_id, "terminate").await {
+        Ok(_) => {
+            log::info!("Server {} terminated successfully", scw_server_id);
+        }
+        Err(err) => {
+            log::error!("Failed to terminate server {}: {:?}", scw_server_id, err);
+            anyhow::bail!("Terminate action failed: {:?}", err);
         }
     }
+
     Ok(())
 }
+
+// async fn delete_server(cfg: &ScalewayConfig, scw_server_id: &str) -> anyhow::Result<()> {
+//     if let Err(err) = perform_action(cfg, scw_server_id, "terminate").await {
+//         log::warn!(
+//             "could not terminate ({:?}), deleting instead {}",
+//             err,
+//             scw_server_id
+//         );
+//         log::debug!("deleting {}", scw_server_id);
+//         let request = Request::delete(format!(
+//             "https://api.scaleway.com/instance/v1/zones/{}/servers/{}",
+//             cfg.zone, scw_server_id
+//         ))
+//         .header("X-Auth-Token", &cfg.secret_key)
+//         .header("Content-Type", "application/json")
+//         .body("")?;
+
+//         let mut response = isahc::send_async(request).await?;
+
+//         if response.status() != 200 && response.status() != 204 {
+//             let body = response
+//                 .text()
+//                 .await
+//                 .context("Failed to read response body")?;
+//             anyhow::bail!("delete failed with status {}: {}", response.status(), body);
+//         }
+//     }
+//     Ok(())
+// }
