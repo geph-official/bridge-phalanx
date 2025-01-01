@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::Path, time::Instant};
+use std::{
+    collections::HashMap,
+    path::Path,
+    time::{Duration, Instant},
+};
 
 use acidjson::AcidJson;
 use anyhow::Context;
@@ -212,48 +216,64 @@ async fn perform_action(
 }
 
 async fn delete_server(cfg: &ScalewayConfig, scw_server_id: &str) -> anyhow::Result<()> {
-    // Log that the termination is being initiated
-    log::debug!("Terminating server {}", scw_server_id);
+    // Get associated sbs_volume ID
+    let request = Request::get(format!(
+        "https://api.scaleway.com/instance/v1/zones/{}/servers/{}",
+        cfg.zone, scw_server_id
+    ))
+    .header("X-Auth-Token", &cfg.secret_key)
+    .header("Content-Type", "application/json")
+    .body("")?;
+    let mut response = isahc::send_async(request).await?;
+    // Deserialize the response into JSON, then extract the volume ID
+    let server_details: Value = response
+        .json()
+        .await
+        .context("Failed to parse JSON body for server details")?;
 
-    // Use the perform_action function to terminate the server
-    match perform_action(cfg, scw_server_id, "terminate").await {
-        Ok(_) => {
-            log::info!("Server {} terminated successfully", scw_server_id);
-        }
-        Err(err) => {
-            log::error!("Failed to terminate server {}: {:?}", scw_server_id, err);
-            anyhow::bail!("Terminate action failed: {:?}", err);
+    let volume_id = server_details["server"]["volumes"]["0"]["id"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Failed to extract volume ID from server details"))?
+        .to_string();
+
+    // Terminate or DELETE
+    if let Err(err) = perform_action(cfg, scw_server_id, "terminate").await {
+        log::warn!(
+            "could not terminate ({:?}), deleting instead {}",
+            err,
+            scw_server_id
+        );
+        log::debug!("deleting {}", scw_server_id);
+        let request = Request::delete(format!(
+            "https://api.scaleway.com/instance/v1/zones/{}/servers/{}",
+            cfg.zone, scw_server_id
+        ))
+        .header("X-Auth-Token", &cfg.secret_key)
+        .header("Content-Type", "application/json")
+        .body("")?;
+
+        let mut response = isahc::send_async(request).await?;
+
+        if response.status() != 200 && response.status() != 204 {
+            let body = response
+                .text()
+                .await
+                .context("Failed to read response body")?;
+            anyhow::bail!("delete failed with status {}: {}", response.status(), body);
         }
     }
-
+    smol::Timer::after(Duration::from_secs(10)).await;
+    // Delete associated sbs_volume
+    let request = Request::delete(format!(
+        "https://api.scaleway.com/block/v1alpha1/zones/{}/volumes/{}",
+        cfg.zone, volume_id
+    ))
+    .header("X-Auth-Token", &cfg.secret_key)
+    .header("Content-Type", "application/json")
+    .body("")?;
+    let mut response = isahc::send_async(request).await?;
+    if response.status() != 200 && response.status() != 204 {
+        log::error!("oOoOoOoO -- FAILED to DELETE associated Scaleway VOLUME {volume_id} RESPONSE: {response:?}");
+    }
     Ok(())
 }
-
-// async fn delete_server(cfg: &ScalewayConfig, scw_server_id: &str) -> anyhow::Result<()> {
-//     if let Err(err) = perform_action(cfg, scw_server_id, "terminate").await {
-//         log::warn!(
-//             "could not terminate ({:?}), deleting instead {}",
-//             err,
-//             scw_server_id
-//         );
-//         log::debug!("deleting {}", scw_server_id);
-//         let request = Request::delete(format!(
-//             "https://api.scaleway.com/instance/v1/zones/{}/servers/{}",
-//             cfg.zone, scw_server_id
-//         ))
-//         .header("X-Auth-Token", &cfg.secret_key)
-//         .header("Content-Type", "application/json")
-//         .body("")?;
-
-//         let mut response = isahc::send_async(request).await?;
-
-//         if response.status() != 200 && response.status() != 204 {
-//             let body = response
-//                 .text()
-//                 .await
-//                 .context("Failed to read response body")?;
-//             anyhow::bail!("delete failed with status {}: {}", response.status(), body);
-//         }
-//     }
-//     Ok(())
-// }
