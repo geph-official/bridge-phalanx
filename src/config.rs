@@ -34,8 +34,12 @@ pub struct GroupConfig {
     pub services: Vec<Service>,
     pub max_bandwidth_gb: Option<u64>,
 
-    #[serde(default)]
+    #[serde(default = "huge_mbps")]
     pub target_mbps: f64,
+}
+
+fn huge_mbps() -> f64 {
+    f64::MAX
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
