@@ -89,10 +89,10 @@ async fn average_mbps(alloc_group: String) -> anyhow::Result<f64> {
             .await?;
 
     let speed_measure = r#"
-S1=$(for i in $(ls /sys/class/net | grep -v '^lo$'); do cat /sys/class/net/$i/statistics/rx_bytes; done | paste -sd+ - | bc); \
+S1=$(for i in $(ls /sys/class/net | grep -v '^lo$'); do cat /sys/class/net/$i/statistics/rx_bytes; done | awk '{s+=$1} END{printf "%.0f", s}'); \
 sleep 1; \
-S2=$(for i in $(ls /sys/class/net | grep -v '^lo$'); do cat /sys/class/net/$i/statistics/rx_bytes; done | paste -sd+ - | bc); \
-echo "scale=2; ($S2 - $S1)*8/(1024*1024)" | bc
+S2=$(for i in $(ls /sys/class/net | grep -v '^lo$'); do cat /sys/class/net/$i/statistics/rx_bytes; done | awk '{s+=$1} END{printf "%.0f", s}'); \
+awk -v s1="$S1" -v s2="$S2" 'BEGIN {diff=s2-s1; printf "%.2f\n", diff*8/(1024*1024)}'
     "#;
 
     let mut speeds = Vec::new();
