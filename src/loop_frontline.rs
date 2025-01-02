@@ -28,7 +28,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc
     let _lala_loop = {
         let adjusted_frontline = adjusted_frontline.clone();
         let base_frontline = cfg.frontline;
-        if base_frontline == 0 || cfg.target_mbps == 0.0f64 {
+        if base_frontline == 0 || cfg.target_mbps < 1.0 {
             return;
         }
 
