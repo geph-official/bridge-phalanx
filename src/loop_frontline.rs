@@ -7,6 +7,8 @@ use std::{
     time::Duration,
 };
 
+use futures_concurrency::future::TryJoin;
+
 use crate::{
     config::GroupConfig,
     database::{BridgeInfo, DATABASE},
@@ -95,14 +97,15 @@ S2=$(for i in $(ls /sys/class/net | grep -v '^lo$'); do cat /sys/class/net/$i/st
 awk -v s1="$S1" -v s2="$S2" 'BEGIN {diff=s2-s1; printf "%.2f\n", diff*8/(1024*1024)}'
     "#;
 
-    let mut speeds = Vec::new();
-
-    for (addr,) in addrs {
-        let resp = ssh_execute(&addr, speed_measure).await?;
-        let resp: f64 = resp.trim().parse()?;
-        speeds.push(resp);
-    }
-
+    let futs = addrs
+        .into_iter()
+        .map(|(addr,)| async move {
+            let resp = ssh_execute(&addr, speed_measure).await?;
+            let resp: f64 = resp.trim().parse()?;
+            anyhow::Ok(resp)
+        })
+        .collect::<Vec<_>>();
+    let speeds = futs.try_join().await?;
     if speeds.is_empty() {
         Ok(0.0)
     } else {
