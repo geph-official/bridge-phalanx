@@ -271,7 +271,7 @@ async fn delete_server(cfg: &ScalewayConfig, scw_server_id: &str) -> anyhow::Res
     .header("X-Auth-Token", &cfg.secret_key)
     .header("Content-Type", "application/json")
     .body("")?;
-    let mut response = isahc::send_async(request).await?;
+    let response = isahc::send_async(request).await?;
     if response.status() != 200 && response.status() != 204 {
         log::error!("oOoOoOoO -- FAILED to DELETE associated Scaleway VOLUME {volume_id} RESPONSE: {response:?}");
     }

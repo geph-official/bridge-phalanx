@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use anyhow::Context;
 use async_trait::async_trait;
-use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 
 use crate::provider::{system, wait_until_reachable};
@@ -170,46 +169,6 @@ impl Provider for LightsailProvider {
             }
         }
         Ok(())
-    }
-
-    async fn overload(&self) -> anyhow::Result<f64> {
-        let LightsailConfig {
-            access_key_id,
-            secret_access_key,
-            region,
-            availability_zone: _,
-            bundle_id: _,
-            key_pair_name: _,
-            target_cpu_usage,
-        } = &self.cfg;
-        let s = system(&format!("AWS_ACCESS_KEY_ID={access_key_id} AWS_SECRET_ACCESS_KEY={secret_access_key} AWS_DEFAULT_REGION={region} aws lightsail get-instances")).await?;
-        let j: MultiInstances = serde_json::from_str(&s)?;
-
-        let mut cpu_usages = futures_util::stream::iter(j.instances.clone())
-            .map(|instance| async move {
-                (
-                    instance.name.clone(),
-                    self.cpu_usage_percent(&instance.name).await.ok(),
-                )
-            })
-            .buffer_unordered(6);
-
-        let mut total_cpu_usage = 0.0;
-        let mut count = 0;
-        while let Some((instance_name, cpu)) = cpu_usages.next().await {
-            if let Some(cpu) = cpu {
-                total_cpu_usage += cpu;
-                log::debug!("{instance_name} has CPU usage {:.2}%", cpu);
-                count += 1;
-            }
-        }
-
-        log::debug!(
-            "AWS {region} average CPU usage = {}",
-            total_cpu_usage / count as f64
-        );
-
-        Ok((total_cpu_usage / count as f64) / *target_cpu_usage)
     }
 }
 

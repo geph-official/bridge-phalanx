@@ -33,6 +33,9 @@ pub struct GroupConfig {
     pub max_lifetime_hr: f64,
     pub services: Vec<Service>,
     pub max_bandwidth_gb: Option<u64>,
+
+    #[serde(default)]
+    pub target_mbps: f64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

@@ -11,6 +11,7 @@ use crate::{
     config::GroupConfig,
     database::{BridgeInfo, DATABASE},
     provider::Provider,
+    ssh::ssh_execute,
 };
 
 pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc<dyn Provider>) {
@@ -45,8 +46,10 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc
 
                 let current_frontline = adjusted_frontline.load(Ordering::SeqCst);
                 let increment = (current_frontline / 10).max(1).min(5);
+
                 let fallible = async {
-                    let overload = provider.overload().await?;
+                    let avg_mbps: f64 = average_mbps(alloc_group.clone()).await?;
+                    let overload = avg_mbps / cfg.target_mbps;
                     if overload > 1.0 {
                         adjusted_frontline.fetch_add(increment, Ordering::SeqCst);
                         // adjusted_frontline.fetch_min(base_frontline * 4, Ordering::SeqCst);
@@ -75,6 +78,38 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc
             log::warn!("error: {:?}", err)
         }
         smol::Timer::after(Duration::from_secs(1)).await;
+    }
+}
+
+async fn average_mbps(alloc_group: String) -> anyhow::Result<f64> {
+    let addrs: Vec<(String,)> =
+        sqlx::query_as("select ip_addr from bridges where alloc_group = $1")
+            .bind(&alloc_group)
+            .fetch_all(DATABASE.deref())
+            .await?;
+
+    let speed_measure = r#"
+S1=$(for i in $(ls /sys/class/net | grep -v '^lo$'); do cat /sys/class/net/$i/statistics/rx_bytes; done | paste -sd+ - | bc); \
+sleep 1; \
+S2=$(for i in $(ls /sys/class/net | grep -v '^lo$'); do cat /sys/class/net/$i/statistics/rx_bytes; done | paste -sd+ - | bc); \
+echo "scale=2; ($S2 - $S1)*8/(1024*1024)" | bc
+    "#;
+
+    let mut speeds = Vec::new();
+
+    for (addr,) in addrs {
+        let resp = ssh_execute(&addr, speed_measure).await?;
+        let resp: f64 = resp.parse()?;
+        speeds.push(resp);
+    }
+
+    if speeds.is_empty() {
+        Ok(0.0)
+    } else {
+        log::debug!("averaging {alloc_group} from {:?}", speeds);
+        let sum: f64 = speeds.iter().sum();
+        let avg = sum / speeds.len() as f64;
+        Ok(avg)
     }
 }
 

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use smol::io::AsyncReadExt;
 
-use crate::{provider::system, ssh::ssh_execute};
+use crate::provider::system;
 
 use super::{wait_until_reachable, Provider};
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -16,6 +16,7 @@ dashmap = "5.4.0"
 eff-wordlist = "1.0.2"
 env_logger = "0.10.0"
 fastrand = "1.8.0"
+futures-concurrency = "7.6.2"
 futures-util = "0.3.26"
 isahc = {version="1.7.2", features=["json"]}
 log = "0.4.17"
