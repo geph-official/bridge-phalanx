@@ -98,8 +98,8 @@ awk -v s1="$S1" -v s2="$S2" 'BEGIN {diff=s2-s1; printf "%.2f\n", diff*8/(1024*10
     let mut speeds = Vec::new();
 
     for (addr,) in addrs {
-        let resp = dbg!(ssh_execute(&addr, speed_measure).await?);
-        let resp: f64 = resp.parse()?;
+        let resp = ssh_execute(&addr, speed_measure).await?;
+        let resp: f64 = resp.trim().parse()?;
         speeds.push(resp);
     }
 
