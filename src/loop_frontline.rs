@@ -98,7 +98,7 @@ echo "scale=2; ($S2 - $S1)*8/(1024*1024)" | bc
     let mut speeds = Vec::new();
 
     for (addr,) in addrs {
-        let resp = ssh_execute(&addr, speed_measure).await?;
+        let resp = dbg!(ssh_execute(&addr, speed_measure).await?);
         let resp: f64 = resp.parse()?;
         speeds.push(resp);
     }
