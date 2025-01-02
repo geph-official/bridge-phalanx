@@ -42,8 +42,7 @@ fn main() {
                 loop_provision(group.to_string(), group_cfg.clone(), provider.clone()).compat(),
             )
             .detach();
-            smol::spawn(loop_frontline(group.to_string(), group_cfg.clone(), provider).compat())
-                .detach();
+            smol::spawn(loop_frontline(group.to_string(), group_cfg.clone()).compat()).detach();
         }
 
         smol::future::pending().await

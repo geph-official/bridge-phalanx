@@ -12,11 +12,10 @@ use futures_concurrency::future::TryJoin;
 use crate::{
     config::GroupConfig,
     database::{BridgeInfo, DATABASE},
-    provider::Provider,
     ssh::ssh_execute,
 };
 
-pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc<dyn Provider>) {
+pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
     let adjusted_frontline = {
         let (current_live,): (i64,) = sqlx::query_as(
             "select count(*) from bridges where alloc_group = $1 and status = 'frontline'",
@@ -52,10 +51,12 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc
                 let fallible = async {
                     let avg_mbps: f64 = average_mbps(alloc_group.clone()).await?;
                     let overload = avg_mbps / cfg.target_mbps;
-                    if overload > 1.0 {
+                    if overload > 1.2 {
                         adjusted_frontline.fetch_add(increment, Ordering::SeqCst);
                         // adjusted_frontline.fetch_min(base_frontline * 4, Ordering::SeqCst);
-                    } else if adjusted_frontline.load(Ordering::SeqCst) >= current_live as _ {
+                    } else if overload < 0.8
+                        && adjusted_frontline.load(Ordering::SeqCst) >= current_live as _
+                    {
                         adjusted_frontline.fetch_sub(increment, Ordering::SeqCst);
                         adjusted_frontline.fetch_max(base_frontline, Ordering::SeqCst);
                     }
