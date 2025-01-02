@@ -28,10 +28,10 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc
     let _lala_loop = {
         let adjusted_frontline = adjusted_frontline.clone();
         let base_frontline = cfg.frontline;
-        if base_frontline == 0 {
+        if base_frontline == 0 || cfg.target_mbps == 0.0f64 {
             return;
         }
-        let provider = provider.clone();
+
         let alloc_group = alloc_group.clone();
         smol::spawn(async move {
             let mut timer = smol::Timer::interval(Duration::from_secs(600));
@@ -45,7 +45,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig, provider: Arc
                 .expect("could not fetch current live");
 
                 let current_frontline = adjusted_frontline.load(Ordering::SeqCst);
-                let increment = (current_frontline / 10).max(1).min(5);
+                let increment = (current_frontline / 10).clamp(1, 5);
 
                 let fallible = async {
                     let avg_mbps: f64 = average_mbps(alloc_group.clone()).await?;
