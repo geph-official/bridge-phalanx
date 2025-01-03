@@ -43,14 +43,13 @@ async fn loop_prune_for_group(group_name: &str, group_config: &GroupConfig) {
         (&mut timer).await;
         log::debug!("prune timer fires for {group_name} with delete_interval {delete_interval}");
         if let Err(err) = sqlx::query(
-            "delete from bridges where alloc_group = $1 and change_time = (
+            "delete from bridges where alloc_group = $1 and last_mbps = (
         SELECT MIN(last_mbps)
         FROM bridges
-        WHERE alloc_group = $2
+        WHERE alloc_group = $1
         AND last_mbps > 1
-      ) limit 1",
+      )",
         )
-        .bind(group_name)
         .bind(group_name)
         .execute(DATABASE.deref())
         .await
