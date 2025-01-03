@@ -85,11 +85,12 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
 }
 
 async fn average_mbps(alloc_group: String) -> anyhow::Result<f64> {
-    let addrs: Vec<(String,)> =
-        sqlx::query_as("select ip_addr from bridges where alloc_group = $1")
-            .bind(&alloc_group)
-            .fetch_all(DATABASE.deref())
-            .await?;
+    let addrs: Vec<(String,)> = sqlx::query_as(
+        "select ip_addr from bridges where alloc_group = $1 and status = 'frontline'",
+    )
+    .bind(&alloc_group)
+    .fetch_all(DATABASE.deref())
+    .await?;
 
     let speed_measure = r#"
 S1=$(for i in $(ls /sys/class/net | grep -v '^lo$'); do cat /sys/class/net/$i/statistics/rx_bytes; done | awk '{s+=$1} END{printf "%.0f", s}'); \

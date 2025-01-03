@@ -24,4 +24,5 @@ pub struct BridgeInfo {
     pub alloc_group: String,
     pub status: String,
     pub change_time: NaiveDateTime,
+    pub last_mbps: f64,
 }
