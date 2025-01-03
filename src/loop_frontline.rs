@@ -104,6 +104,11 @@ awk -v s1="$S1" -v s2="$S2" 'BEGIN {diff=s2-s1; printf "%.2f\n", diff*8/(1024*10
         .map(|(addr,)| async move {
             let resp = ssh_execute(&addr, speed_measure).await?;
             let resp: f64 = resp.trim().parse()?;
+            sqlx::query("update bridges set last_mbps = $1 where ip_addr = $2")
+                .bind(resp)
+                .bind(addr)
+                .execute(DATABASE.deref())
+                .await?;
             anyhow::Ok(resp)
         })
         .collect::<Vec<_>>();
