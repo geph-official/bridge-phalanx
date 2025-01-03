@@ -30,7 +30,7 @@ pub struct GroupConfig {
     pub no_antigfw: bool,
     pub provider: ProviderConfig,
     /// Maximum lifetime.
-    pub max_lifetime_hr: f64,
+    pub avg_lifetime_hr: f64,
     pub services: Vec<Service>,
     pub max_bandwidth_gb: Option<u64>,
 
