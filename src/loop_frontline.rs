@@ -35,7 +35,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
 
         let alloc_group = alloc_group.clone();
         smol::spawn(async move {
-            let mut timer = smol::Timer::interval(Duration::from_secs(600));
+            let mut timer = smol::Timer::interval(Duration::from_secs(60));
             loop {
                 let (current_live,): (i64,) = sqlx::query_as(
                     "select count(*) from bridges where alloc_group = $1 and status = 'frontline'",
@@ -45,19 +45,17 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
                 .await
                 .expect("could not fetch current live");
 
-                let current_frontline = adjusted_frontline.load(Ordering::SeqCst);
-                let increment = (current_frontline / 10).clamp(1, 5);
-
                 let fallible = async {
                     let avg_mbps: f64 = average_mbps(alloc_group.clone()).await?;
                     let overload = avg_mbps / cfg.target_mbps;
+                    let ideal_frontline = current_live as f64 * overload;
                     if overload > 1.2 {
-                        adjusted_frontline.fetch_add(increment, Ordering::SeqCst);
+                        adjusted_frontline.store(ideal_frontline as _, Ordering::SeqCst);
                         // adjusted_frontline.fetch_min(base_frontline * 4, Ordering::SeqCst);
                     } else if overload < 0.8
-                        && adjusted_frontline.load(Ordering::SeqCst) >= current_live as _
+                    // && adjusted_frontline.load(Ordering::SeqCst) >= current_live as _
                     {
-                        adjusted_frontline.fetch_sub(increment, Ordering::SeqCst);
+                        adjusted_frontline.store(ideal_frontline as _, Ordering::SeqCst);
                         adjusted_frontline.fetch_max(base_frontline, Ordering::SeqCst);
                     }
                     log::info!(
