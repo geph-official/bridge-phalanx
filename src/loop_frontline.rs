@@ -60,7 +60,9 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
                         && adjusted_frontline.load(Ordering::SeqCst) >= current_live as _
                     {
                         adjusted_frontline.store(
-                            (ideal_frontline as usize).max(base_frontline),
+                            (ideal_frontline as usize)
+                                .max(base_frontline)
+                                .max(current_live as usize),
                             Ordering::SeqCst,
                         );
                     }
