@@ -29,6 +29,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
     let _lala_loop = {
         let adjusted_frontline = adjusted_frontline.clone();
         let base_frontline = cfg.frontline;
+        let max_frontline = cfg.max_frontline.unwrap_or(usize::MAX);
         if base_frontline == 0 {
             return;
         }
@@ -50,13 +51,18 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
                     let overload = avg_mbps / cfg.target_mbps;
                     let ideal_frontline = current_live as f64 * overload;
                     if overload > 1.2 {
-                        adjusted_frontline.store(ideal_frontline as _, Ordering::SeqCst);
+                        adjusted_frontline.store(
+                            (ideal_frontline as usize).min(max_frontline),
+                            Ordering::SeqCst,
+                        );
                         // adjusted_frontline.fetch_min(base_frontline * 4, Ordering::SeqCst);
                     } else if overload < 0.8
                     // && adjusted_frontline.load(Ordering::SeqCst) >= current_live as _
                     {
-                        adjusted_frontline.store(ideal_frontline as _, Ordering::SeqCst);
-                        adjusted_frontline.fetch_max(base_frontline, Ordering::SeqCst);
+                        adjusted_frontline.store(
+                            (ideal_frontline as usize).max(base_frontline),
+                            Ordering::SeqCst,
+                        );
                     }
                     log::info!(
                         "adjusted frontline of {alloc_group} to {} on overload {overload}",

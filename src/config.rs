@@ -23,6 +23,8 @@ pub struct Config {
 /// Configuration for a single bridge group
 pub struct GroupConfig {
     pub frontline: usize,
+    #[serde(default)]
+    pub max_frontline: Option<usize>,
     pub reserve: usize,
     #[serde(default)]
     pub override_group: Option<String>,
