@@ -57,12 +57,10 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
                         );
                         // adjusted_frontline.fetch_min(base_frontline * 4, Ordering::SeqCst);
                     } else if overload < 0.8
-                        && adjusted_frontline.load(Ordering::SeqCst) >= current_live as _
+                    // && adjusted_frontline.load(Ordering::SeqCst) >= current_live as _
                     {
                         adjusted_frontline.store(
-                            (ideal_frontline as usize)
-                                .max(base_frontline)
-                                .max(current_live as usize),
+                            (ideal_frontline as usize).max(base_frontline),
                             Ordering::SeqCst,
                         );
                     }
