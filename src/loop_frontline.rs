@@ -90,7 +90,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
 }
 
 async fn set_overload(alloc_group: &str, overload: f64) -> anyhow::Result<()> {
-    let delay_ms = (overload / 2.0).powi(10) * 1000.0;
+    let delay_ms = if overload > 1.2 { 500.0 } else { 0.0 };
     sqlx::query(
         r#"
 INSERT INTO bridge_group_delays (pool, delay_ms, is_plus)
