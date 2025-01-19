@@ -49,6 +49,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
                 let fallible = async {
                     let avg_mbps: f64 = average_mbps(alloc_group.clone()).await?;
                     let overload = avg_mbps / cfg.target_mbps;
+                    set_overload(&alloc_group, overload).await?;
                     let ideal_frontline = current_live as f64 * overload;
                     if overload > 1.2 {
                         adjusted_frontline.store(
@@ -86,6 +87,25 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
         }
         smol::Timer::after(Duration::from_secs(1)).await;
     }
+}
+
+async fn set_overload(alloc_group: &str, overload: f64) -> anyhow::Result<()> {
+    let delay_ms = overload.powi(10) * 1000.0;
+    sqlx::query(
+        r#"
+INSERT INTO bridge_group_delays (pool, delay_ms, is_plus)
+VALUES ($1, $2, true)
+ON CONFLICT (pool)
+DO 
+   UPDATE SET 
+       delay_ms = EXCLUDED.delay_ms,
+    "#,
+    )
+    .bind(alloc_group)
+    .bind(delay_ms as i32)
+    .execute(&*DATABASE)
+    .await?;
+    Ok(())
 }
 
 async fn average_mbps(alloc_group: String) -> anyhow::Result<f64> {
