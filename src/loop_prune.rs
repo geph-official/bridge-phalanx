@@ -31,16 +31,16 @@ async fn loop_prune_all() {
 }
 
 async fn loop_prune_for_group(group_name: &str, group_config: &GroupConfig) {
-    let (total_group_count,): (i64,) =
-        sqlx::query_as("select count(*) from bridges where alloc_group = $1")
-            .bind(group_name)
-            .fetch_one(DATABASE.deref())
-            .await
-            .unwrap();
-    let delete_interval = group_config.avg_lifetime_hr / (total_group_count.max(1) as f64) * 3600.0;
-    let mut timer = smol::Timer::interval(Duration::from_secs_f64(delete_interval));
     loop {
-        (&mut timer).await;
+        let (total_group_count,): (i64,) =
+            sqlx::query_as("select count(*) from bridges where alloc_group = $1")
+                .bind(group_name)
+                .fetch_one(DATABASE.deref())
+                .await
+                .unwrap();
+        let delete_interval =
+            group_config.avg_lifetime_hr / (total_group_count.max(1) as f64) * 3600.0;
+        smol::Timer::after(Duration::from_secs_f64(delete_interval)).await;
         log::debug!("prune timer fires for {group_name} with delete_interval {delete_interval}");
         if let Err(err) = sqlx::query(
             "delete from bridges where alloc_group = $1 and last_mbps = (
