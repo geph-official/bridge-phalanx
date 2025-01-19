@@ -50,13 +50,13 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
                     let avg_mbps: f64 = average_mbps(alloc_group.clone()).await?;
                     let overload = avg_mbps / cfg.target_mbps;
                     let ideal_frontline = current_live as f64 * overload;
-                    if overload > 1.2 {
+                    if overload > 1.4 {
                         adjusted_frontline.store(
                             (ideal_frontline as usize).min(max_frontline),
                             Ordering::SeqCst,
                         );
                         // adjusted_frontline.fetch_min(base_frontline * 4, Ordering::SeqCst);
-                    } else if overload < 0.8
+                    } else if overload < 0.6
                     // && adjusted_frontline.load(Ordering::SeqCst) >= current_live as _
                     {
                         adjusted_frontline.store(
