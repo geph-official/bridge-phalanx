@@ -98,7 +98,7 @@ VALUES ($1, $2, true)
 ON CONFLICT (pool)
 DO 
    UPDATE SET 
-       delay_ms = EXCLUDED.delay_ms,
+       delay_ms = EXCLUDED.delay_ms
     "#,
     )
     .bind(alloc_group)
