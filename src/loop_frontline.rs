@@ -66,7 +66,8 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
                         );
                     }
                     log::info!(
-                        "adjusted frontline of {alloc_group} to {} on overload {overload}",
+                        "adjusted frontline of {alloc_group} from {} to {} on overload {overload}",
+                        current_live,
                         adjusted_frontline.load(Ordering::SeqCst)
                     );
                     anyhow::Ok(())
