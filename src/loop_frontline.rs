@@ -52,7 +52,8 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
                     set_overload(&alloc_group, overload).await?;
                     let ideal_frontline = current_live as f64 * overload;
                     let ideal_frontline = ideal_frontline
-                        .clamp(current_live as f64 - 1.0, current_live as f64 * 1.2 + 1.0);
+                        .clamp(current_live as f64 - 1.0, current_live as f64 * 1.2 + 1.0)
+                        .round();
                     if overload > 1.2 {
                         adjusted_frontline.store(
                             (ideal_frontline as usize).min(max_frontline),
