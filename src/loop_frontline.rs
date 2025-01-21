@@ -47,7 +47,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
                 .expect("could not fetch current live");
 
                 let fallible = async {
-                    let avg_mbps: f64 = average_mbps(alloc_group.clone()).await?;
+                    let avg_mbps: f64 = signal_mbps(alloc_group.clone()).await?;
                     let overload = avg_mbps / cfg.target_mbps;
                     set_overload(&alloc_group, overload).await?;
                     let ideal_frontline = current_live as f64 * overload;
@@ -108,7 +108,7 @@ delay_ms = EXCLUDED.delay_ms"#,
     Ok(())
 }
 
-async fn average_mbps(alloc_group: String) -> anyhow::Result<f64> {
+async fn signal_mbps(alloc_group: String) -> anyhow::Result<f64> {
     let addrs: Vec<(String,)> = sqlx::query_as(
         "select ip_addr from bridges where alloc_group = $1 and status = 'frontline'",
     )
@@ -136,14 +136,14 @@ awk -v s1="$S1" -v s2="$S2" 'BEGIN {diff=s2-s1; printf "%.2f\n", diff*8/(1024*10
             anyhow::Ok(resp)
         })
         .collect::<Vec<_>>();
-    let speeds = futs.try_join().await?;
+    let mut speeds = futs.try_join().await?;
     if speeds.is_empty() {
         Ok(0.0)
     } else {
-        log::debug!("averaging {alloc_group} from {:?}", speeds);
-        let sum: f64 = speeds.iter().sum();
-        let avg = sum / speeds.len() as f64;
-        Ok(avg)
+        speeds.sort_unstable_by_key(|s| (*s * 10000.0) as u64);
+        speeds.reverse();
+        log::debug!("picking a speed for {alloc_group} from {:?}", speeds);
+        Ok(speeds[speeds.len() / 10])
     }
 }
 
