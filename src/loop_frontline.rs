@@ -36,7 +36,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
 
         let alloc_group = alloc_group.clone();
         smol::spawn(async move {
-            let mut timer = smol::Timer::interval(Duration::from_secs(60));
+            let mut timer = smol::Timer::interval(Duration::from_secs(600));
             loop {
                 let (current_live,): (i64,) = sqlx::query_as(
                     "select count(*) from bridges where alloc_group = $1 and status = 'frontline'",
@@ -51,15 +51,15 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
                     let overload = avg_mbps / cfg.target_mbps;
                     set_overload(&alloc_group, overload).await?;
                     let ideal_frontline = current_live as f64 * overload;
+                    let ideal_frontline =
+                        ideal_frontline.clamp(current_live as f64 - 1.0, current_live as f64 * 1.2);
                     if overload > 1.2 {
                         adjusted_frontline.store(
                             (ideal_frontline as usize).min(max_frontline),
                             Ordering::SeqCst,
                         );
                         // adjusted_frontline.fetch_min(base_frontline * 4, Ordering::SeqCst);
-                    } else if overload < 0.8
-                    // && adjusted_frontline.load(Ordering::SeqCst) >= current_live as _
-                    {
+                    } else if overload < 0.8 {
                         adjusted_frontline.store(
                             (ideal_frontline as usize).max(base_frontline),
                             Ordering::SeqCst,
@@ -92,14 +92,12 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
 async fn set_overload(alloc_group: &str, overload: f64) -> anyhow::Result<()> {
     let delay_ms = (overload - 1.0).max(0.0) * 1000.0;
     sqlx::query(
-        r#"
-INSERT INTO bridge_group_delays (pool, delay_ms, is_plus)
+        r#"INSERT INTO bridge_group_delays (pool, delay_ms, is_plus)
 VALUES ($1, $2, false)
 ON CONFLICT (pool)
-DO 
-   UPDATE SET 
-       delay_ms = EXCLUDED.delay_ms
-    "#,
+DO
+UPDATE SET 
+delay_ms = EXCLUDED.delay_ms"#,
     )
     .bind(alloc_group)
     .bind(delay_ms as i32)
