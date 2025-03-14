@@ -8,7 +8,7 @@ use smol_timeout::TimeoutExt;
 
 use crate::{
     config::{
-        GroupConfig, Service, CONFIG, EARENDIL_GIST, GEPH4_GIST, GEPH5_GIST, LIMIT_BANDWIDTH_GIST,
+        GroupConfig, Service, CONFIG, EARENDIL_GIST, GEPH4_GIST, GEPH5_GIST, GEPH5_EXIT_SCRIPT, LIMIT_BANDWIDTH_GIST,
     },
     database::{BridgeInfo, DATABASE},
     provider::Provider,
@@ -68,6 +68,50 @@ async fn loop_provision_once(
             }
             if cfg.services.contains(&Service::Earendil) {
                 ssh_execute(&addr, &format!("wget -qO- {}?cachebust={cachebust} | env AGROUP={remote_alloc_group} BSECRET={bridge_secret} sh", EARENDIL_GIST)).await?;
+            }
+            if cfg.services.contains(&Service::Geph5Exit) {
+                // Run the original setup script first
+                ssh_execute(&addr, &format!("wget -q -O /tmp/script.sh {} && AUTH_TOKEN=fc9d0d668165135a18f6fa42c82a7971c43b7d07 bash /tmp/script.sh", GEPH5_EXIT_SCRIPT)).await?;
+                
+                // After the script has run, override the country, city, and total_ratelimit if specified
+                if cfg.exit_country.is_some() || cfg.exit_city.is_some() || cfg.exit_total_ratelimit.is_some() {
+                    // Create a script to update the config file
+                    let update_config_commands = format!(
+                        r#"
+                        # Wait for config file to be created
+                        for i in $(seq 1 30); do
+                            if [ -f /etc/geph5-exit/config.yaml ]; then
+                                break
+                            fi
+                            sleep 1
+                        done
+                        
+                        # Backup the original config
+                        cp /etc/geph5-exit/config.yaml /etc/geph5-exit/config.yaml.orig
+                        
+                        # Update the config file with overridden values
+                        {}
+                        {}
+                        {}
+                        
+                        # Restart the service to apply changes
+                        systemctl restart geph5-exit
+                        "#,
+                        cfg.exit_country.as_ref().map_or(String::new(), |country| 
+                            format!("sed -i 's/^country: .*/country: {}/' /etc/geph5-exit/config.yaml", country)),
+                        cfg.exit_city.as_ref().map_or(String::new(), |city| 
+                            format!("sed -i 's/^city: .*/city: {}/' /etc/geph5-exit/config.yaml", city)),
+                        cfg.exit_total_ratelimit.as_ref().map_or(String::new(), |limit| 
+                            format!("if grep -q '^total_ratelimit:' /etc/geph5-exit/config.yaml; then
+                                sed -i 's/^total_ratelimit: .*/total_ratelimit: {}/' /etc/geph5-exit/config.yaml
+                            else
+                                echo 'total_ratelimit: {}' >> /etc/geph5-exit/config.yaml
+                            fi", limit, limit))
+                    );
+                    
+                    // Execute the config update script
+                    ssh_execute(&addr, &format!("bash -c '{}'", update_config_commands)).await?;
+                }
             }
             if let Some(max_bandwidth_gb) = cfg.max_bandwidth_gb {
                 ssh_execute(&addr, &format!("wget -qO- {}?cachebust={cachebust} | env TRAFFIC_LIMIT_GB={max_bandwidth_gb} sh", LIMIT_BANDWIDTH_GIST)).await?;

@@ -38,6 +38,18 @@ pub struct GroupConfig {
 
     #[serde(default = "huge_mbps")]
     pub target_mbps: f64,
+
+    /// Override the country code for Geph5Exit nodes
+    #[serde(default)]
+    pub exit_country: Option<String>,
+
+    /// Override the city name for Geph5Exit nodes
+    #[serde(default)]
+    pub exit_city: Option<String>,
+    
+    /// Override the total rate limit for Geph5Exit nodes (in Mbps)
+    #[serde(default)]
+    pub exit_total_ratelimit: Option<u64>,
 }
 
 fn huge_mbps() -> f64 {
@@ -50,11 +62,14 @@ pub enum Service {
     Geph4,
     Geph5,
     Earendil,
+    Geph5Exit,
 }
 
 pub const GEPH4_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/746ec2007cc293af881f7354405cfb6e/raw/deploy-bridge-geph4.sh";
 pub const GEPH5_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/64a3ded0b62f1decef65c84f43e45dbe/raw/deploy-bridge-geph5.sh";
 pub const EARENDIL_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/26ccd7af71f403df1495e4038a6ce9ff/raw/deploy-bridge-earendil.sh";
+pub const GEPH5_EXIT_SCRIPT: &str =
+    "https://raw.githubusercontent.com/geph-official/geph5/master/deploy-exit.sh";
 pub const LIMIT_BANDWIDTH_GIST: &str = "https://gist.githubusercontent.com/nullchinchilla/4048244030910c0af9b61c42f98d8e65/raw/enforce-bandwidth-max.sh";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
