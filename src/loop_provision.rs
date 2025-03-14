@@ -102,11 +102,7 @@ async fn loop_provision_once(
                         cfg.exit_city.as_ref().map_or(String::new(), |city| 
                             format!("sed -i 's/^city: .*/city: {}/' /etc/geph5-exit/config.yaml", city)),
                         cfg.exit_total_ratelimit.as_ref().map_or(String::new(), |limit| 
-                            format!("if grep -q '^total_ratelimit:' /etc/geph5-exit/config.yaml; then
-                                sed -i 's/^total_ratelimit: .*/total_ratelimit: {}/' /etc/geph5-exit/config.yaml
-                            else
-                                echo 'total_ratelimit: {}' >> /etc/geph5-exit/config.yaml
-                            fi", limit, limit))
+                            format!("echo 'total_ratelimit: {}' >> /etc/geph5-exit/config.yaml", limit))
                     );
                     
                     // Execute the config update script
