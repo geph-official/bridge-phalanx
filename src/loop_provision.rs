@@ -76,15 +76,8 @@ async fn loop_provision_once(
                 // After the script has run, override the country, city, and total_ratelimit if specified
                 if cfg.exit_country.is_some() || cfg.exit_city.is_some() || cfg.exit_total_ratelimit.is_some() {
                     // Create a script to update the config file
-                    let update_config_commands = format!(
+                    let update_config_commands = dbg!(format!(
                         r#"
-                        # Wait for config file to be created
-                        for i in $(seq 1 30); do
-                            if [ -f /etc/geph5-exit/config.yaml ]; then
-                                break
-                            fi
-                            sleep 1
-                        done
                         
                         # Backup the original config
                         cp /etc/geph5-exit/config.yaml /etc/geph5-exit/config.yaml.orig
@@ -103,7 +96,7 @@ async fn loop_provision_once(
                             format!("sed -i 's/^city: .*/city: {}/' /etc/geph5-exit/config.yaml", city)),
                         cfg.exit_total_ratelimit.as_ref().map_or(String::new(), |limit| 
                             format!("echo 'total_ratelimit: {}' >> /etc/geph5-exit/config.yaml", limit))
-                    );
+                    ));
                     
                     // Execute the config update script
                     ssh_execute(&addr, &format!("bash -c '{}'", update_config_commands)).await?;
