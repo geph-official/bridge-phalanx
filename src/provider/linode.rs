@@ -1,6 +1,7 @@
-use std::time::Duration;
+use std::{sync::LazyLock, time::Duration};
 
 use async_trait::async_trait;
+use dashmap::DashSet;
 use isahc::AsyncReadResponseExt;
 use serde::{Deserialize, Serialize};
 
@@ -66,6 +67,8 @@ fn linodify_id(id: &str) -> String {
     format!("bridge-{id}")
 }
 
+static CREATING: LazyLock<DashSet<i32>> = LazyLock::new(DashSet::new);
+
 #[async_trait]
 impl Provider for LinodeProvider {
     async fn create_server(&self, id: &str) -> anyhow::Result<String> {
@@ -95,9 +98,11 @@ impl Provider for LinodeProvider {
         }
 
         let linode: LinodeInstance = resp.json().await?;
-
-        smol::Timer::after(Duration::from_secs(30)).await;
-
+        CREATING.insert(linode.id);
+        let linode_id = linode.id;
+        scopeguard::defer!({
+            CREATING.remove(&linode_id);
+        });
         // Wait for the Linode to be fully provisioned and running
         loop {
             let instance = self.get_server_by_id(&linode.id.to_string()).await?;
@@ -124,7 +129,7 @@ impl Provider for LinodeProvider {
                 .unwrap_or(&instance.label)
                 .to_string();
 
-            if !pred(id.clone()) {
+            if !pred(id.clone()) && !CREATING.contains(&instance.id) {
                 self.delete_server(&instance.id.to_string()).await?;
             }
         }
