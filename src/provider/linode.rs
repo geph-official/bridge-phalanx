@@ -185,6 +185,8 @@ impl LinodeProvider {
             ))
             .await?;
 
+        log::debug!("LINODE DELETING {id}");
+
         if !resp.status().is_success() {
             let r = resp.text().await?;
             anyhow::bail!("non-success while deleting Linode: {:?} {r}", resp.status())
