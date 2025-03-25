@@ -135,7 +135,7 @@ impl Provider for LinodeProvider {
                 && instance.region != self.cfg.region
             {
                 log::debug!("MUST DELETE {id}");
-                smol::Timer::after(Duration::from_secs(30)).await;
+
                 self.delete_server(&instance.id.to_string()).await?;
             }
         }
