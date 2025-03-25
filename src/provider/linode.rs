@@ -1,11 +1,10 @@
 use std::time::Duration;
 
-use anyhow::Context;
 use async_trait::async_trait;
 use isahc::AsyncReadResponseExt;
 use serde::{Deserialize, Serialize};
 
-use super::{system, wait_until_reachable, Provider};
+use super::{wait_until_reachable, Provider};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LinodeConfig {
@@ -96,6 +95,8 @@ impl Provider for LinodeProvider {
         }
 
         let linode: LinodeInstance = resp.json().await?;
+
+        smol::Timer::after(Duration::from_secs(30)).await;
 
         // Wait for the Linode to be fully provisioned and running
         loop {
