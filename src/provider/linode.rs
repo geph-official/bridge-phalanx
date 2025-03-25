@@ -55,6 +55,7 @@ struct LinodeInstance {
     id: i32,
     label: String,
     status: String,
+    region: String,
     ipv4: Vec<String>,
 }
 
@@ -129,7 +130,10 @@ impl Provider for LinodeProvider {
                 .unwrap_or(&instance.label)
                 .to_string();
 
-            if !pred(id.clone()) && !CREATING.contains(&instance.id) {
+            if !pred(id.clone())
+                && !CREATING.contains(&instance.id)
+                && instance.region != self.cfg.region
+            {
                 log::debug!("MUST DELETE {id}");
                 smol::Timer::after(Duration::from_secs(30)).await;
                 self.delete_server(&instance.id.to_string()).await?;
