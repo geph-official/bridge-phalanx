@@ -1,5 +1,6 @@
 pub mod hetzner;
 pub mod lightsail;
+pub mod linode;
 pub mod oneprovider;
 pub mod ovh;
 pub mod scaleway;
