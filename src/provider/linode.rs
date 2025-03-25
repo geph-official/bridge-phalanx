@@ -132,7 +132,7 @@ impl Provider for LinodeProvider {
 
             if !pred(id.clone())
                 && !CREATING.contains(&instance.id)
-                && instance.region != self.cfg.region
+                && instance.region == self.cfg.region
             {
                 log::debug!("MUST DELETE {id}");
 
