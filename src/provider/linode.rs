@@ -130,6 +130,8 @@ impl Provider for LinodeProvider {
                 .to_string();
 
             if !pred(id.clone()) && !CREATING.contains(&instance.id) {
+                log::debug!("MUST DELETE {id}");
+                smol::Timer::after(Duration::from_secs(30)).await;
                 self.delete_server(&instance.id.to_string()).await?;
             }
         }
