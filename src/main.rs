@@ -6,9 +6,9 @@ use loop_onoff::loop_onoff;
 use loop_provision::loop_provision;
 use loop_prune::loop_prune;
 use provider::{
-    hetzner::HetznerProvider, lightsail::LightsailProvider, linode::LinodeProvider,
-    oneprovider::OneCloudProvider, ovh::OvhProvider, scaleway::ScalewayProvider, 
-    vultr::VultrProvider, Provider,
+    hetzner::HetznerProvider, ip_fresher::IpFresher, lightsail::LightsailProvider,
+    linode::LinodeProvider, oneprovider::OneCloudProvider, ovh::OvhProvider,
+    scaleway::ScalewayProvider, vultr::VultrProvider, Provider,
 };
 use std::sync::Arc;
 
@@ -36,7 +36,7 @@ fn main() {
                 ProviderConfig::Vultr(cfg) => Arc::new(VultrProvider::new(cfg.clone())),
                 ProviderConfig::Scaleway(cfg) => Arc::new(ScalewayProvider::new(cfg.clone())),
                 ProviderConfig::Hetzner(cfg) => Arc::new(HetznerProvider::new(cfg.clone())),
-                ProviderConfig::Ovh(cfg) => Arc::new(OvhProvider::new(cfg.clone())),
+                ProviderConfig::Ovh(cfg) => Arc::new(IpFresher::new(OvhProvider::new(cfg.clone()))),
                 ProviderConfig::Onecloud(cfg) => Arc::new(OneCloudProvider::new(cfg.clone())),
                 ProviderConfig::Linode(cfg) => Arc::new(LinodeProvider::new(cfg.clone())),
             };

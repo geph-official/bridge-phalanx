@@ -1,4 +1,5 @@
 pub mod hetzner;
+pub mod ip_fresher;
 pub mod lightsail;
 pub mod linode;
 pub mod oneprovider;

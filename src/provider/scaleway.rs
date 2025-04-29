@@ -50,14 +50,6 @@ fn check_recent(s: &str) -> bool {
     lst.contains_key(s)
 }
 
-static USED_IPS: Lazy<AcidJson<HashMap<String, u64>>> = Lazy::new(|| {
-    let fname = "/tmp/scw-ips.json";
-    if !Path::new(fname).exists() {
-        std::fs::write(fname, "{}").unwrap();
-    }
-    AcidJson::open(Path::new(fname)).unwrap()
-});
-
 #[async_trait]
 impl Provider for ScalewayProvider {
     async fn create_server(&self, phalanx_id: &str) -> anyhow::Result<String> {
