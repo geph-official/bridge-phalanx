@@ -113,7 +113,7 @@ impl Provider for OvhProvider {
         for server in servers.iter() {
             let name = server.name();
             if !pred(name.clone()) {
-                log::info!("about to deleting server: {:?}", name);
+                log::info!("{:?} about to deleting server: {:?}", self.cfg, name);
                 server.clone().delete().await?;
                 log::info!("successfully deleted server: {:?}", name);
             }
