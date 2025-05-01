@@ -254,18 +254,22 @@ async fn delete_server(cfg: &ScalewayConfig, scw_server_id: &str) -> anyhow::Res
             anyhow::bail!("delete failed with status {}: {}", response.status(), body);
         }
     }
-    smol::Timer::after(Duration::from_secs(10)).await;
-    // Delete associated sbs_volume
-    let request = Request::delete(format!(
-        "https://api.scaleway.com/block/v1alpha1/zones/{}/volumes/{}",
-        cfg.zone, volume_id
-    ))
-    .header("X-Auth-Token", &cfg.secret_key)
-    .header("Content-Type", "application/json")
-    .body("")?;
-    let response = isahc::send_async(request).await?;
-    if response.status() != 200 && response.status() != 204 {
-        log::error!("oOoOoOoO -- FAILED to DELETE associated Scaleway VOLUME {volume_id} RESPONSE: {response:?}");
+    loop {
+        smol::Timer::after(Duration::from_secs(1)).await;
+        // Delete associated sbs_volume
+        let request = Request::delete(format!(
+            "https://api.scaleway.com/block/v1alpha1/zones/{}/volumes/{}",
+            cfg.zone, volume_id
+        ))
+        .header("X-Auth-Token", &cfg.secret_key)
+        .header("Content-Type", "application/json")
+        .body("")?;
+        let response = isahc::send_async(request).await?;
+        if response.status() != 200 && response.status() != 204 {
+            log::error!("oOoOoOoO -- FAILED to DELETE associated Scaleway VOLUME {volume_id} RESPONSE: {response:?}");
+        } else {
+            break;
+        }
     }
     Ok(())
 }
