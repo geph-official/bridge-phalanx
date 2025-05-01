@@ -16,19 +16,18 @@ impl<T: Provider> IpFresher<T> {
 
     // Helper function to check if an IP has been seen before
     async fn is_ip_seen(&self, ip: &str) -> Result<bool> {
-        let result: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM phalanx_seen_ips WHERE ip_address = $1)",
-        )
-        .bind(ip)
-        .fetch_one(&*DATABASE)
-        .await?;
+        let result: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM phalanx_seen_ips WHERE ip_addr = $1)")
+                .bind(ip)
+                .fetch_one(&*DATABASE)
+                .await?;
 
         Ok(result)
     }
 
     // Helper function to record a seen IP
     async fn record_seen_ip(&self, ip: &str) -> Result<()> {
-        sqlx::query("INSERT INTO phalanx_seen_ips (ip_address) VALUES ($1) ON CONFLICT DO NOTHING")
+        sqlx::query("INSERT INTO phalanx_seen_ips (ip_addr) VALUES ($1) ON CONFLICT DO NOTHING")
             .bind(ip)
             .execute(&*DATABASE)
             .await?;
