@@ -34,9 +34,7 @@ fn main() {
             let provider: Arc<dyn Provider> = match &group_cfg.provider {
                 ProviderConfig::Lightsail(cfg) => Arc::new(LightsailProvider::new(cfg.clone())),
                 ProviderConfig::Vultr(cfg) => Arc::new(VultrProvider::new(cfg.clone())),
-                ProviderConfig::Scaleway(cfg) => {
-                    Arc::new(IpFresher::new(ScalewayProvider::new(cfg.clone())))
-                }
+                ProviderConfig::Scaleway(cfg) => Arc::new(ScalewayProvider::new(cfg.clone())),
                 ProviderConfig::Hetzner(cfg) => Arc::new(HetznerProvider::new(cfg.clone())),
                 ProviderConfig::Ovh(cfg) => Arc::new(IpFresher::new(OvhProvider::new(cfg.clone()))),
                 ProviderConfig::Onecloud(cfg) => Arc::new(OneCloudProvider::new(cfg.clone())),
