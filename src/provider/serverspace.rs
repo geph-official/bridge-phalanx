@@ -163,7 +163,7 @@ impl Provider for ServerSpaceProvider {
         pred: Box<dyn Fn(String) -> bool + Send + 'static>,
     ) -> anyhow::Result<()> {
         for s in self.list_servers().await? {
-            let srv_id = s["id"].to_string();
+            let srv_id = s["id"].as_str().context("no srv id")?.to_string();
             let label = s["name"].as_str().unwrap_or("").to_string();
             let short = label.strip_prefix("bridge-").unwrap_or(&label).to_string();
 
