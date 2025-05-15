@@ -4,8 +4,9 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use crate::provider::{
-    hetzner::HetznerConfig, lightsail::LightsailConfig, linode::LinodeConfig, oneprovider::OneCloudConfig,
-    ovh::OvhConfig, scaleway::ScalewayConfig, vultr::VultrConfig,
+    hetzner::HetznerConfig, lightsail::LightsailConfig, linode::LinodeConfig,
+    oneprovider::OneCloudConfig, ovh::OvhConfig, scaleway::ScalewayConfig,
+    serverspace::ServerSpaceConfig, vultr::VultrConfig,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -46,7 +47,7 @@ pub struct GroupConfig {
     /// Override the city name for Geph5Exit nodes
     #[serde(default)]
     pub exit_city: Option<String>,
-    
+
     /// Override the total rate limit for Geph5Exit nodes (in Mbps)
     #[serde(default)]
     pub exit_total_ratelimit: Option<u64>,
@@ -83,6 +84,7 @@ pub enum ProviderConfig {
     Ovh(OvhConfig),
     Onecloud(OneCloudConfig),
     Linode(LinodeConfig),
+    ServerSpace(ServerSpaceConfig),
 }
 
 /// Global configuration file

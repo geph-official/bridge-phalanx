@@ -8,7 +8,7 @@ use loop_prune::loop_prune;
 use provider::{
     hetzner::HetznerProvider, ip_fresher::IpFresher, lightsail::LightsailProvider,
     linode::LinodeProvider, oneprovider::OneCloudProvider, ovh::OvhProvider,
-    scaleway::ScalewayProvider, vultr::VultrProvider, Provider,
+    scaleway::ScalewayProvider, serverspace::ServerSpaceProvider, vultr::VultrProvider, Provider,
 };
 use std::sync::Arc;
 
@@ -39,6 +39,7 @@ fn main() {
                 ProviderConfig::Ovh(cfg) => Arc::new(IpFresher::new(OvhProvider::new(cfg.clone()))),
                 ProviderConfig::Onecloud(cfg) => Arc::new(OneCloudProvider::new(cfg.clone())),
                 ProviderConfig::Linode(cfg) => Arc::new(LinodeProvider::new(cfg.clone())),
+                ProviderConfig::ServerSpace(cfg) => Arc::new(ServerSpaceProvider::new(cfg.clone())),
             };
             smol::spawn(
                 loop_provision(group.to_string(), group_cfg.clone(), provider.clone()).compat(),

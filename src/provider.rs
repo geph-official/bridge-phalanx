@@ -5,6 +5,7 @@ pub mod linode;
 pub mod oneprovider;
 pub mod ovh;
 pub mod scaleway;
+pub mod serverspace;
 pub mod vultr;
 
 use std::{process::Stdio, time::Duration};
