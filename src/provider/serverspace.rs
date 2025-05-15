@@ -109,7 +109,7 @@ impl Provider for ServerSpaceProvider {
             .client
             .post_async(format!("{API}/servers"), body.to_string().into_bytes())
             .await?;
-        if resp.status() != StatusCode::OK {
+        if resp.status() != StatusCode::OK && resp.status() != StatusCode::CREATED {
             anyhow::bail!("create failed: {} {:?}", resp.text().await?, resp.status())
         }
         let v: Value = resp.json().await?;
