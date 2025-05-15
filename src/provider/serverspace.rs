@@ -143,7 +143,7 @@ impl Provider for ServerSpaceProvider {
 
         // wait until the VM is “Active” and has a public IP
         loop {
-            let s = self.server(&sid).await?;
+            let s = dbg!(self.server(&sid)).await?;
             if s["state"] == "Active" {
                 if let Some(ip) = s["nics"].as_array().and_then(|a| {
                     a.iter()
