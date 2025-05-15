@@ -110,7 +110,7 @@ impl Provider for ServerSpaceProvider {
             .post_async(format!("{API}/servers"), body.to_string().into_bytes())
             .await?;
         if resp.status() != StatusCode::OK {
-            anyhow::bail!("create failed: {}", resp.text().await?)
+            anyhow::bail!("create failed: {} {:?}", resp.text().await?, resp.status())
         }
         let v: Value = resp.json().await?;
         let task_id = v["task_id"]
