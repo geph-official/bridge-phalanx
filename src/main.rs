@@ -36,7 +36,7 @@ fn main() {
                 ProviderConfig::Vultr(cfg) => Arc::new(VultrProvider::new(cfg.clone())),
                 ProviderConfig::Scaleway(cfg) => Arc::new(ScalewayProvider::new(cfg.clone())),
                 ProviderConfig::Hetzner(cfg) => Arc::new(HetznerProvider::new(cfg.clone())),
-                ProviderConfig::Ovh(cfg) => Arc::new(IpFresher::new(OvhProvider::new(cfg.clone()))),
+                ProviderConfig::Ovh(cfg) => Arc::new(OvhProvider::new(cfg.clone())),
                 ProviderConfig::Onecloud(cfg) => Arc::new(OneCloudProvider::new(cfg.clone())),
                 ProviderConfig::Linode(cfg) => Arc::new(LinodeProvider::new(cfg.clone())),
                 ProviderConfig::ServerSpace(cfg) => Arc::new(ServerSpaceProvider::new(cfg.clone())),
