@@ -74,7 +74,7 @@ pub async fn loop_frontline(alloc_group: String, cfg: GroupConfig) {
                     anyhow::Ok(())
                 };
                 if let Err(err) = fallible.await {
-                    log::warn!("could not adjust frontline: {:?}", err)
+                    log::warn!("{alloc_group}: could not adjust frontline: {:?}", err)
                 } else {
                     (&mut timer).await;
                 }
