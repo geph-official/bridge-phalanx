@@ -15,14 +15,19 @@ use async_trait::async_trait;
 /// A specific service provider.
 #[async_trait]
 pub trait Provider: Send + Sync + 'static {
-    /// Creates a new server, returning an IP address reachable through SSH port 22 and "root".
-    async fn create_server(&self, id: &str) -> anyhow::Result<String>;
+    /// Creates a new server
+    async fn create_server(&self) -> anyhow::Result<CreatedServer>;
 
     /// Retains only the servers that match the given predicate.
     async fn retain_by_id(
         &self,
         pred: Box<dyn Fn(String) -> bool + Send + 'static>,
     ) -> anyhow::Result<()>;
+}
+
+pub struct CreatedServer {
+    pub id: String,
+    pub ip_addr: String,
 }
 
 async fn system(cmd: &str) -> anyhow::Result<String> {

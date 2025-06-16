@@ -1,9 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use sqlx::query;
 
 use super::Provider;
-use crate::database::DATABASE;
+use crate::{database::DATABASE, provider::CreatedServer};
 
 pub struct IpFresher<T: Provider> {
     inner: T,
@@ -38,21 +37,24 @@ impl<T: Provider> IpFresher<T> {
 
 #[async_trait]
 impl<T: Provider> Provider for IpFresher<T> {
-    async fn create_server(&self, id: &str) -> Result<String> {
+    async fn create_server(&self) -> Result<CreatedServer> {
         loop {
-            let ip = self.inner.create_server(id).await?;
+            let created = self.inner.create_server().await?;
 
             // Check if we've seen this IP before
-            let seen = self.is_ip_seen(&ip).await?;
+            let seen = self.is_ip_seen(&created.ip_addr).await?;
 
             if !seen {
                 // If this IP hasn't been seen before, add it to our database and return it
-                self.record_seen_ip(&ip).await?;
-                return Ok(ip);
+                self.record_seen_ip(&created.ip_addr).await?;
+                return Ok(created);
             }
 
             // If we've seen this IP before, try again by continuing the loop
-            log::info!("IP {} already seen, retrying server creation", ip);
+            log::info!(
+                "IP {} already seen, retrying server creation",
+                created.ip_addr
+            );
         }
     }
 

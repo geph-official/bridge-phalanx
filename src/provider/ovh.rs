@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use crate::provider::{system, wait_until_reachable};
+use crate::{
+    id::new_id,
+    provider::{system, wait_until_reachable, CreatedServer},
+};
 
 use super::Provider;
 use anyhow::Context;
@@ -32,11 +35,12 @@ impl OvhProvider {
 #[async_trait]
 impl Provider for OvhProvider {
     /// Creates a new server, returning an IP address reachable through SSH port 22 and "root".
-    async fn create_server(&self, name: &str) -> anyhow::Result<String> {
+    async fn create_server(&self) -> anyhow::Result<CreatedServer> {
         // Horrifying hax: set the env variables here lol
         for (k, v) in self.cfg.env_variables.iter() {
             std::env::set_var(k, v);
         }
+        let name = new_id();
 
         let os = openstack::Cloud::from_env()
             .compat()
@@ -46,7 +50,7 @@ impl Provider for OvhProvider {
         log::info!("Creating OVH server...");
         let config = self.cfg.clone();
         let waiter = os
-            .new_server(name, config.flavor)
+            .new_server(name.clone(), config.flavor)
             .with_image(config.image)
             .with_network(config.network)
             .with_keypair(config.keypair_name)
@@ -93,7 +97,10 @@ impl Provider for OvhProvider {
         system(&dbg!(format!("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null debian@{ipv4} sudo cp /home/debian/.ssh/authorized_keys /root/.ssh/authorized_keys"))).await?;
         log::debug!("ENABLED ROOT ACCESS FOR OVH {ipv4}");
 
-        Ok(ipv4.to_string())
+        Ok(CreatedServer {
+            id: name,
+            ip_addr: ipv4.to_string(),
+        })
     }
 
     /// Retains only the servers that match the given predicate.

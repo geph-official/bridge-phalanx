@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use smol::io::AsyncReadExt;
 
-use crate::provider::system;
+use crate::{
+    id::new_id,
+    provider::{system, CreatedServer},
+};
 
 use super::{wait_until_reachable, Provider};
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -31,7 +34,8 @@ impl OneCloudProvider {
 
 #[async_trait]
 impl Provider for OneCloudProvider {
-    async fn create_server(&self, phalanx_id: &str) -> anyhow::Result<String> {
+    async fn create_server(&self) -> anyhow::Result<CreatedServer> {
+        let phalanx_id = new_id();
         let create_server_req = vec![
             ("hostname", phalanx_id.to_string()),
             ("location_id", self.cfg.location_id.to_string()),
@@ -74,7 +78,10 @@ impl Provider for OneCloudProvider {
             .context("no password")?;
         system(&format!("sshpass -p {password} ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@{ip_addr}")).await?;
         // ssh_execute(&ip_addr, "apt update -y").await?;
-        Ok(ip_addr)
+        Ok(CreatedServer {
+            ip_addr,
+            id: phalanx_id,
+        })
     }
 
     async fn retain_by_id(

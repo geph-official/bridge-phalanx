@@ -4,7 +4,10 @@ use anyhow::Context;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::provider::{system, wait_until_reachable};
+use crate::{
+    id::new_id,
+    provider::{system, wait_until_reachable, CreatedServer},
+};
 
 use super::Provider;
 
@@ -83,8 +86,9 @@ impl LightsailProvider {
 
 #[async_trait]
 impl Provider for LightsailProvider {
-    async fn create_server(&self, id: &str) -> anyhow::Result<String> {
-        let name = id_to_name(id);
+    async fn create_server(&self) -> anyhow::Result<CreatedServer> {
+        let id = new_id();
+        let name = id_to_name(&id);
         let bundle_id = self.cfg.bundle_id.clone();
         let availability_zone = self.cfg.availability_zone.clone();
         let key_pair_name = self.cfg.key_pair_name.clone();
@@ -121,7 +125,7 @@ impl Provider for LightsailProvider {
             "<{availability_zone}> instance {name} has ip {ip_addr}, enabling root access..."
         );
         system(&format!("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{ip_addr} sudo cp ~admin/.ssh/authorized_keys ~root/.ssh/authorized_keys")).await?;
-        Ok(ip_addr)
+        Ok(CreatedServer { ip_addr, id })
     }
 
     async fn retain_by_id(

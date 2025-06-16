@@ -3,7 +3,10 @@ use isahc::{AsyncReadResponseExt, Request, RequestExt};
 use serde::{Deserialize, Serialize};
 use smol::io::AsyncReadExt;
 
-use crate::provider::wait_until_reachable;
+use crate::{
+    id::new_id,
+    provider::{wait_until_reachable, CreatedServer},
+};
 
 use super::Provider;
 
@@ -28,7 +31,8 @@ impl HetznerProvider {
 
 #[async_trait]
 impl Provider for HetznerProvider {
-    async fn create_server(&self, id: &str) -> anyhow::Result<String> {
+    async fn create_server(&self) -> anyhow::Result<CreatedServer> {
+        let id = new_id();
         #[derive(Serialize)]
         struct CreateServerReq {
             name: String,
@@ -62,7 +66,10 @@ impl Provider for HetznerProvider {
             .ok_or_else(|| anyhow::anyhow!("Failed to extract IPv4 address from response"))?;
 
         wait_until_reachable(val).await;
-        Ok(val.to_string())
+        Ok(CreatedServer {
+            id,
+            ip_addr: val.to_string(),
+        })
     }
 
     async fn retain_by_id(

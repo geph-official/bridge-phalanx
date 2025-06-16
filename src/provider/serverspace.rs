@@ -7,6 +7,8 @@ use isahc::{http::StatusCode, AsyncReadResponseExt, HttpClient};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use crate::{id::new_id, provider::CreatedServer};
+
 use super::{wait_until_reachable, Provider};
 
 const API: &str = "https://api.serverspace.io/api/v1";
@@ -91,7 +93,8 @@ impl ServerSpaceProvider {
 /* ---------- Provider impl ---------- */
 #[async_trait]
 impl Provider for ServerSpaceProvider {
-    async fn create_server(&self, id: &str) -> anyhow::Result<String> {
+    async fn create_server(&self) -> anyhow::Result<CreatedServer> {
+        let id = new_id();
         let label = format!("bridge-{id}");
         let body = json!({
             "location_id":  self.cfg.location_id,
@@ -144,7 +147,7 @@ impl Provider for ServerSpaceProvider {
         // wait until the VM is “Active” and has a public IP
         loop {
             let s = &self.server(&sid).await?["server"];
-            dbg!(s);
+
             if s["state"] == "Active" {
                 if let Some(ip) = s["nics"].as_array().and_then(|a| {
                     a.iter()
@@ -152,7 +155,10 @@ impl Provider for ServerSpaceProvider {
                         .and_then(|n| n["ip_address"].as_str())
                 }) {
                     wait_until_reachable(ip).await;
-                    return Ok(ip.to_owned());
+                    return Ok(CreatedServer {
+                        id,
+                        ip_addr: ip.to_owned(),
+                    });
                 }
             }
             smol::Timer::after(Duration::from_secs(2)).await;
@@ -170,7 +176,7 @@ impl Provider for ServerSpaceProvider {
 
             if !pred(short)
                 && !CREATING.contains(&srv_id)
-                && s["nics"].as_array().map_or(false, |n| {
+                && s["nics"].as_array().is_some_and(|n| {
                     n.iter().any(|n| n["network_type"] == "PublicShared")
                 })
             {

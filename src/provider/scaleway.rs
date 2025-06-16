@@ -1,10 +1,8 @@
 use std::{
     collections::HashMap,
-    path::Path,
     time::{Duration, Instant},
 };
 
-use acidjson::AcidJson;
 use anyhow::Context;
 
 use async_trait::async_trait;
@@ -15,7 +13,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use smol::io::AsyncReadExt;
 
-use crate::provider::wait_until_reachable;
+use crate::{
+    id::new_id,
+    provider::{wait_until_reachable, CreatedServer},
+};
 
 use super::Provider;
 
@@ -52,8 +53,9 @@ fn check_recent(s: &str) -> bool {
 
 #[async_trait]
 impl Provider for ScalewayProvider {
-    async fn create_server(&self, phalanx_id: &str) -> anyhow::Result<String> {
-        add_recent(phalanx_id);
+    async fn create_server(&self) -> anyhow::Result<CreatedServer> {
+        let phalanx_id = new_id();
+        add_recent(&phalanx_id);
         let create_server_req = json!({
             "name": phalanx_id,
             "project": self.cfg.project_id,
@@ -107,7 +109,10 @@ impl Provider for ScalewayProvider {
                 wait_until_reachable(&ip_addr).await;
                 log::debug!("fully done {id}");
 
-                return Ok(ip_addr.to_string());
+                return Ok(CreatedServer {
+                    ip_addr: ip_addr.to_string(),
+                    id: phalanx_id,
+                });
             }
         }
     }

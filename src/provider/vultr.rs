@@ -5,6 +5,8 @@ use async_trait::async_trait;
 use isahc::AsyncReadResponseExt;
 use serde::{Deserialize, Serialize};
 
+use crate::{id::new_id, provider::CreatedServer};
+
 use super::Provider;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -56,7 +58,8 @@ struct ServerDescriptor {
 
 #[async_trait]
 impl Provider for VultrProvider {
-    async fn create_server(&self, id: &str) -> anyhow::Result<String> {
+    async fn create_server(&self) -> anyhow::Result<CreatedServer> {
+        let id = new_id();
         let id = id.to_string();
         let cfg = self.cfg.clone();
         let client = self.client.clone();
@@ -85,7 +88,10 @@ impl Provider for VultrProvider {
                     && server.main_ip.is_some()
                     && server.status == "active"
             }) {
-                return Ok(server.main_ip.unwrap());
+                return Ok(CreatedServer {
+                    ip_addr: server.main_ip.unwrap(),
+                    id,
+                });
             }
             smol::Timer::after(Duration::from_secs(1)).await;
         }

@@ -5,6 +5,8 @@ use dashmap::DashSet;
 use isahc::AsyncReadResponseExt;
 use serde::{Deserialize, Serialize};
 
+use crate::{id::new_id, provider::CreatedServer};
+
 use super::{wait_until_reachable, Provider};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -72,8 +74,8 @@ static CREATING: LazyLock<DashSet<i32>> = LazyLock::new(DashSet::new);
 
 #[async_trait]
 impl Provider for LinodeProvider {
-    async fn create_server(&self, id: &str) -> anyhow::Result<String> {
-        let id = id.to_string();
+    async fn create_server(&self) -> anyhow::Result<CreatedServer> {
+        let id = new_id();
         let cfg = self.cfg.clone();
         let client = self.client.clone();
         let req = CreateLinodeArgs {
@@ -110,7 +112,10 @@ impl Provider for LinodeProvider {
 
             if instance.status == "running" && !instance.ipv4.is_empty() {
                 wait_until_reachable(&instance.ipv4[0]).await;
-                return Ok(instance.ipv4[0].clone());
+                return Ok(CreatedServer {
+                    id: id.clone(),
+                    ip_addr: instance.ipv4[0].clone(),
+                });
             }
 
             smol::Timer::after(Duration::from_secs(5)).await;
