@@ -38,7 +38,7 @@ impl<T: Provider> IpFresher<T> {
 #[async_trait]
 impl<T: Provider> Provider for IpFresher<T> {
     async fn create_server(&self) -> Result<CreatedServer> {
-        loop {
+        for count in 0u64.. {
             let created = self.inner.create_server().await?;
 
             // Check if we've seen this IP before
@@ -52,10 +52,11 @@ impl<T: Provider> Provider for IpFresher<T> {
 
             // If we've seen this IP before, try again by continuing the loop
             log::info!(
-                "IP {} already seen, retrying server creation",
+                "count={count}, IP {} already seen, retrying server creation",
                 created.ip_addr
             );
         }
+        unreachable!()
     }
 
     async fn retain_by_id(&self, pred: Box<dyn Fn(String) -> bool + Send + 'static>) -> Result<()> {
