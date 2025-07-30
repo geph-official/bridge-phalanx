@@ -46,6 +46,10 @@ impl<T: Provider> Provider for IpFresher<T> {
 
             if !seen {
                 // If this IP hasn't been seen before, add it to our database and return it
+                log::info!(
+                    "count={count}, IP {} SUCCESSFULLY GOT A FRESH FRESH server creation",
+                    created.ip_addr
+                );
                 self.record_seen_ip(&created.ip_addr).await?;
                 return Ok(created);
             }
