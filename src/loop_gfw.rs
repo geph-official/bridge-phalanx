@@ -39,9 +39,12 @@ async fn loop_gfw_inner() -> anyhow::Result<()> {
         tasks.push(smol::spawn(async move {
             let _guard = SMALL_SEMAPHORE.acquire().await;
             let is_blocked = {
-                ssh_execute(&bridge.ip_addr, "ping -i 0.1 -W 1 -c 10 10010.com || true")
-                    .await?
-                    .contains("100%")
+                ssh_execute(
+                    &bridge.ip_addr,
+                    "ping -i 0.1 -W 1 -c 10 123.123.123.123 || true",
+                )
+                .await?
+                .contains("100%")
             };
             if is_blocked {
                 log::debug!(
